@@ -19,6 +19,7 @@ type APIServer struct {
 type Config struct {
 	Environment string
 	Port        int
+	Version     int
 }
 
 func NewServer(cfg *Config, logger *slog.Logger) *APIServer {
