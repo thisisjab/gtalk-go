@@ -6,8 +6,48 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (s *APIServer) routes() http.Handler {
-	router := httprouter.New()
+type Router struct {
+	baseUrl     string
+	middlewares []func(http.Handler) http.Handler
+	router      *httprouter.Router
+}
 
-	return s.logRequestMiddleware(s.panciRecoveryMiddleware(router))
+func NewRouter(baseUrl string) *Router {
+	return &Router{
+		baseUrl: baseUrl,
+		router:  httprouter.New(),
+	}
+}
+
+func (r *Router) RegisterMiddlewares(middlewares ...func(http.Handler) http.Handler) {
+	r.middlewares = append(r.middlewares, middlewares...)
+}
+
+func (r *Router) RegisterHandlerFunc(method, path string, handler http.HandlerFunc) {
+	r.router.HandlerFunc(method, r.baseUrl+path, handler)
+}
+
+func (r *Router) All() http.Handler {
+	var res http.Handler = r.router
+
+	for _, middleware := range r.middlewares {
+		res = middleware(res)
+	}
+
+	return res
+}
+
+func (s *APIServer) routes() http.Handler {
+	router := NewRouter("/api/v1")
+
+	// Endpoints
+	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleGetHealthCheck)
+
+	// Middlewares
+	router.RegisterMiddlewares(
+		s.logRequestMiddleware,
+		s.panciRecoveryMiddleware,
+	)
+
+	return router.All()
 }
