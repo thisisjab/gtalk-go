@@ -50,5 +50,5 @@ func setupLogger(logLevel string) *slog.Logger {
 func loadAPIConfig(env *envreader.EnvReader, cfg *api.Config) {
 	flag.StringVar(&cfg.Environment, "environment", env.Choice("ENVIRONMENT", []string{"development", "production"}, "development"), "server environment (development, production)")
 	flag.IntVar(&cfg.Port, "port", env.Int("PORT", 8000), "server port")
-	flag.IntVar(&cfg.Version, "version", env.Int("VERSION", 1), "server version (1 by default).")
+	flag.StringVar(&cfg.Version, "version", env.String("VERSION", "1.0"), "server version (1.0 by default).")
 }
