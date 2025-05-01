@@ -3,8 +3,10 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
     version BIGINT NOT NULL DEFAULT 1,
-    email TEXT NOT NULL UNIQUE,
+    username CITEXT NOT NULL UNIQUE,
+    email CITEXT NOT NULL UNIQUE,
     email_verified_at TIMESTAMPTZ,
-    display_name TEXT NOT NULL,
-    bio TEXT
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    bio TEXT,
+    password_hash bytea NOT NULL
 );

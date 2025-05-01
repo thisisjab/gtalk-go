@@ -7,8 +7,8 @@ import (
 )
 
 type BaseModel struct {
-	ID        uuid.UUID
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Version   int64
+	ID        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
+	Version   int64     `json:"-"`
 }
