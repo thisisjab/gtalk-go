@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:17.1-bullseye
+    restart: always
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./volumes/postgresql/data:/var/lib/postgresql/data/
+    env_file: ./.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
