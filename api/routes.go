@@ -9,5 +9,5 @@ import (
 func (s *APIServer) routes() http.Handler {
 	router := httprouter.New()
 
-	return router
+	return s.logRequestMiddleware(s.panciRecoveryMiddleware(router))
 }
