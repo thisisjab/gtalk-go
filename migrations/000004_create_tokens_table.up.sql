@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS tokens (
+    hash bytea PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users ON DELETE CASCADE,
+    scope TEXT NOT NULL,
+    expiry TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+);
