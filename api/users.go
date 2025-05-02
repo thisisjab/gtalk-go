@@ -1,0 +1,58 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/thisisjab/gchat-go/internal/data"
+	"github.com/thisisjab/gchat-go/internal/validator"
+)
+
+func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Username string  `json:"username"`
+		Email    string  `json:"email"`
+		Bio      *string `json:"bio"`
+		Password string  `json:"password"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+		return
+	}
+
+	user := &data.User{
+		Username: input.Username,
+		Email:    input.Email,
+		Bio:      input.Bio,
+		IsActive: false,
+	}
+	user.Password.Set(input.Password)
+
+	v := validator.New()
+	data.ValidateUser(v, user)
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	if err := s.models.User.Insert(user); err != nil {
+		switch {
+		case errors.Is(err, data.ErrUserDuplicateUsername):
+			v.AddError("username", "this username is already taken")
+			s.failedValidationResponse(w, r, v.Errors())
+		case errors.Is(err, data.ErrUserDuplicateEmail):
+			v.AddError("email", "this email is already taken")
+			s.failedValidationResponse(w, r, v.Errors())
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	if err := s.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+}

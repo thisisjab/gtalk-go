@@ -40,8 +40,11 @@ func (r *Router) All() http.Handler {
 func (s *APIServer) routes() http.Handler {
 	router := NewRouter("/api/v1")
 
-	// Endpoints
+	// Healthcheck
 	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleGetHealthCheck)
+
+	// Users
+	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handlerPostUser)
 
 	// Middlewares
 	router.RegisterMiddlewares(

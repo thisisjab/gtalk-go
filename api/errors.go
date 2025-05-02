@@ -11,7 +11,7 @@ func (s *APIServer) logError(r *http.Request, err error) {
 	)
 }
 
-func (s *APIServer) errorResponse(w http.ResponseWriter, r *http.Request, status int, msg string) {
+func (s *APIServer) errorResponse(w http.ResponseWriter, r *http.Request, status int, msg any) {
 	env := envelope{"error": msg}
 
 	err := s.writeJSON(w, status, env, nil)
@@ -27,4 +27,12 @@ func (s *APIServer) serverErrorResponse(w http.ResponseWriter, r *http.Request, 
 
 	message := "Internal server error"
 	s.errorResponse(w, r, http.StatusInternalServerError, message)
+}
+
+func (s *APIServer) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
+	s.errorResponse(w, r, http.StatusBadRequest, err.Error())
+}
+
+func (s *APIServer) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
+	s.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
