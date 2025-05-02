@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -9,10 +10,13 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/thisisjab/gchat-go/internal/data"
 )
 
 type APIServer struct {
 	config *Config
+	models *data.Models
 	logger *slog.Logger
 }
 
@@ -22,9 +26,10 @@ type Config struct {
 	Version     string
 }
 
-func NewServer(cfg *Config, logger *slog.Logger) *APIServer {
+func NewServer(cfg *Config, db *sql.DB, logger *slog.Logger) *APIServer {
 	return &APIServer{
 		config: cfg,
+		models: data.NewModels(db),
 		logger: logger,
 	}
 }

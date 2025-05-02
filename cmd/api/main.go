@@ -4,8 +4,10 @@ import (
 	"flag"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/thisisjab/gchat-go/api"
+	"github.com/thisisjab/gchat-go/internal/database"
 	"github.com/thisisjab/gchat-go/internal/envreader"
 )
 
@@ -17,11 +19,20 @@ func main() {
 	apiCfg := &api.Config{}
 	loadAPIConfig(env, apiCfg)
 
+	dbCfg := &database.Config{}
+	loadDatabaseConfig(env, dbCfg)
+
 	flag.Parse()
 
 	logger := setupLogger(*logLevel)
 
-	server := api.NewServer(apiCfg, logger)
+	database, err := database.OpenDB(*dbCfg)
+	if err != nil {
+		logger.Error("failed to open database", "error", err)
+		os.Exit(1)
+	}
+
+	server := api.NewServer(apiCfg, database, logger)
 	if err := server.Start(); err != nil {
 		logger.Error("failed to start server", "error", err)
 		os.Exit(1)
@@ -51,4 +62,11 @@ func loadAPIConfig(env *envreader.EnvReader, cfg *api.Config) {
 	flag.StringVar(&cfg.Environment, "environment", env.Choice("ENVIRONMENT", []string{"development", "production"}, "development"), "server environment (development, production)")
 	flag.IntVar(&cfg.Port, "port", env.Int("PORT", 8000), "server port")
 	flag.StringVar(&cfg.Version, "version", env.String("VERSION", "1.0"), "server version (1.0 by default).")
+}
+
+func loadDatabaseConfig(env *envreader.EnvReader, cfg *database.Config) {
+	flag.StringVar(&cfg.DSN, "db-dsn", env.String("DB_DSN", ""), "database dsn (postgres only)")
+	flag.IntVar(&cfg.MaxOpenConns, "db-max-open-conn", env.Int("DB_MAX_OPEN_CONN", 20), "database max open connections (default: 20)")
+	flag.IntVar(&cfg.MaxIdleConns, "db-max-idle-conn", env.Int("DB_MAX_IDLE_CONN", 20), "database max idle connections (default: 20)")
+	flag.DurationVar(&cfg.MaxIdleTime, "db-max-idle-time", env.Duration("DB_MAX_IDLE_TIME", 15*time.Minute), "database max idle time (default: 15 minutes)")
 }
