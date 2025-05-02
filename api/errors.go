@@ -51,3 +51,20 @@ func (s *APIServer) invalidCredentialsResponse(w http.ResponseWriter, r *http.Re
 	message := "invalid credentials provided"
 	s.errorResponse(w, r, http.StatusUnauthorized, message)
 }
+
+func (s *APIServer) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("WWW-Authenticate", "Bearer") // To indicate a bearer token is expected.
+
+	message := "invalid or missing authentication token"
+	s.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (s *APIServer) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	message := "authentication is required"
+	s.errorResponse(w, r, http.StatusUnauthorized, message)
+}
+
+func (s *APIServer) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
+	message := "account is deactivated"
+	s.errorResponse(w, r, http.StatusForbidden, message)
+}

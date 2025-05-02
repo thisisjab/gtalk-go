@@ -25,6 +25,7 @@ func (s *APIServer) routes() http.Handler {
 		s.panciRecoveryMiddleware,
 		s.corsMiddleware,
 		s.rateLimitMiddleware,
+		s.authenticate,
 	)
 
 	return router.All()
