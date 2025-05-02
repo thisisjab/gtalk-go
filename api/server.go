@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"github.com/thisisjab/gchat-go/internal/data"
@@ -18,6 +19,7 @@ type APIServer struct {
 	config *Config
 	models *data.Models
 	logger *slog.Logger
+	wg     sync.WaitGroup
 }
 
 type Config struct {
@@ -63,6 +65,9 @@ func (s *APIServer) Start() error {
 			shutdownErr <- err
 		}
 
+		s.logger.Info("completing background tasks", "addr", srv.Addr)
+		s.wg.Wait()
+
 		shutdownErr <- nil
 	}()
 
@@ -82,4 +87,20 @@ func (s *APIServer) Start() error {
 
 	return nil
 
+}
+
+func (s *APIServer) background(fn func()) {
+	s.wg.Add(1)
+
+	go func() {
+		defer s.wg.Done()
+
+		defer func() {
+			if err := recover(); err != nil {
+				s.logger.Error(fmt.Sprintf("error while running background task: %v", err))
+			}
+		}()
+
+		fn()
+	}()
 }
