@@ -37,6 +37,11 @@ func (s *APIServer) failedValidationResponse(w http.ResponseWriter, r *http.Requ
 	s.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
 
+func (s *APIServer) editConflictResponse(w http.ResponseWriter, r *http.Request) {
+	message := "edit conflict: please try again."
+	s.errorResponse(w, r, http.StatusConflict, message)
+}
+
 func (s *APIServer) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
 	message := "too many requests"
 	s.errorResponse(w, r, http.StatusTooManyRequests, message)

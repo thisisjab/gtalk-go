@@ -29,6 +29,11 @@ type TokenModel struct {
 	DB *sql.DB
 }
 
+func hashToken(tokenPlaintext string) []byte {
+	hash := sha256.Sum256([]byte(tokenPlaintext))
+	return hash[:]
+}
+
 func generateToken(userID uuid.UUID, ttl time.Duration, scope string) (*Token, error) {
 	token := &Token{
 		UserID: userID,
@@ -44,9 +49,7 @@ func generateToken(userID uuid.UUID, ttl time.Duration, scope string) (*Token, e
 	}
 
 	token.Plaintext = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes)
-
-	hash := sha256.Sum256([]byte(token.Plaintext))
-	token.Hash = hash[:]
+	token.Hash = hashToken(token.Plaintext)
 
 	return token, nil
 }
@@ -87,7 +90,7 @@ func (m TokenModel) Insert(token *Token) error {
 	return err
 }
 
-func (m TokenModel) DeleteAllForUser(userID int64, scope string) error {
+func (m TokenModel) DeleteAllForUser(userID uuid.UUID, scope string) error {
 	query := `DELETE FROM tokens WHERE user_id=$1 AND scope = $2`
 
 	args := []any{

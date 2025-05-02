@@ -116,3 +116,92 @@ func (m UserModel) Insert(user *User) error {
 
 	return nil
 }
+
+func (m UserModel) Update(user *User) error {
+	query := `
+		UPDATE users
+		SET
+			username = $1,
+			email = $2,
+			email_verified_at = CASE WHEN $2 = email THEN email_verified_at ELSE NULL END,
+			password_hash = $3,
+			is_active = $4,
+			bio = $5,
+			version = version + 1
+		WHERE id = $6 AND version = $7
+		RETURNING version
+	`
+
+	args := []any{user.Username, user.Email, user.Password.hash, user.IsActive, user.Bio, user.ID, user.Version}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
+			return ErrUserDuplicateUsername
+		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+			return ErrUserDuplicateEmail
+		default:
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m UserModel) GetFromToken(tokenPlaintext, scope string) (*User, error) {
+	tokenHash := hashToken(tokenPlaintext)
+
+	query := `
+		SELECT
+			u.id,
+			u.username,
+			u.email,
+			u.email_verified_at,
+			u.password_hash,
+			u.bio,
+			u.is_active,
+			u.created_at,
+			u.updated_at,
+			u.version
+		FROM users u
+		INNER JOIN tokens t ON u.id = t.user_id
+		WHERE t.hash = $1 AND t.scope = $2 AND t.expiry > $3
+	`
+
+	var user User
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{tokenHash, scope, time.Now()}
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.EmailVerifiedAt,
+		&user.Password.hash,
+		&user.Bio,
+		&user.IsActive,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoRecordFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+}

@@ -77,3 +77,59 @@ func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (s *APIServer) handlerPostUserAccountActivate(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		TokenPlaintext string `json:"token"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+		return
+	}
+
+	v := validator.New()
+	data.ValidateTokenPlaintext(v, input.TokenPlaintext)
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	user, err := s.models.User.GetFromToken(input.TokenPlaintext, data.ScopeAccountActivation)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecordFound):
+			s.badRequestResponse(w, r, errors.New("invalid token"))
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	now := time.Now()
+	user.EmailVerifiedAt = &now
+	user.IsActive = true
+
+	if err := s.models.User.Update(user); err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			s.editConflictResponse(w, r)
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = s.models.Token.DeleteAllForUser(user.ID, data.ScopeAccountActivation)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = s.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+	}
+}
