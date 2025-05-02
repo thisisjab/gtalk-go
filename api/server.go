@@ -25,6 +25,11 @@ type APIServer struct {
 }
 
 type Config struct {
+	Cors struct {
+		AllowedHeaders string
+		AllowedMethods string
+		TrustedOrigins []string
+	}
 	Environment string
 	Port        int
 	Version     string

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/thisisjab/gchat-go/api"
@@ -69,6 +70,19 @@ func loadAPIConfig(env *envreader.EnvReader, cfg *api.Config) {
 	flag.StringVar(&cfg.Environment, "environment", env.Choice("ENVIRONMENT", []string{"development", "production"}, "development"), "server environment (development, production)")
 	flag.IntVar(&cfg.Port, "port", env.Int("PORT", 8000), "server port")
 	flag.StringVar(&cfg.Version, "version", env.String("VERSION", "1.0"), "server version (1.0 by default).")
+
+	// CORS
+	flag.StringVar(&cfg.Cors.AllowedHeaders, "cors-allowed-headers", env.String("CORS_ALLOWED_HEADERS", "Content-Type, Authorization"), "Allowed CORS headers (comma separated)")
+	flag.StringVar(&cfg.Cors.AllowedMethods, "cors-allowed-methods", env.String("CORS_ALLOWED_METHODS", "POST, PATCH, DELETE"), "Allowed CORS methods (comma separated)")
+	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
+		if val == "" {
+			val = env.String("CORS_TRUSTED_ORIGINS", "")
+		}
+
+		cfg.Cors.TrustedOrigins = strings.Fields(val)
+
+		return nil
+	})
 }
 
 func loadDatabaseConfig(env *envreader.EnvReader, cfg *database.Config) {
