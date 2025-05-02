@@ -6,6 +6,26 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+func (s *APIServer) routes() http.Handler {
+	router := NewRouter("/api/v1")
+
+	// Healthcheck
+	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleGetHealthCheck)
+
+	// Users
+	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handlerPostUser)
+
+	// Middlewares
+	router.RegisterMiddlewares(
+		s.logRequestMiddleware,
+		s.panciRecoveryMiddleware,
+		s.corsMiddleware,
+		s.rateLimitMiddleware,
+	)
+
+	return router.All()
+}
+
 type Router struct {
 	baseUrl     string
 	middlewares []func(http.Handler) http.Handler
@@ -35,22 +55,4 @@ func (r *Router) All() http.Handler {
 	}
 
 	return res
-}
-
-func (s *APIServer) routes() http.Handler {
-	router := NewRouter("/api/v1")
-
-	// Healthcheck
-	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleGetHealthCheck)
-
-	// Users
-	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handlerPostUser)
-
-	// Middlewares
-	router.RegisterMiddlewares(
-		s.logRequestMiddleware,
-		s.panciRecoveryMiddleware,
-	)
-
-	return router.All()
 }

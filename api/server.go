@@ -32,7 +32,12 @@ type Config struct {
 	}
 	Environment string
 	Port        int
-	Version     string
+	RateLimiter struct {
+		Rps     int
+		Burst   int
+		Enabled bool
+	}
+	Version string
 }
 
 func NewServer(cfg *Config, db *sql.DB, mailer *mailer.Mailer, logger *slog.Logger) *APIServer {

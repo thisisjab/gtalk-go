@@ -36,3 +36,8 @@ func (s *APIServer) badRequestResponse(w http.ResponseWriter, r *http.Request, e
 func (s *APIServer) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
 	s.errorResponse(w, r, http.StatusUnprocessableEntity, errors)
 }
+
+func (s *APIServer) rateLimitExceededResponse(w http.ResponseWriter, r *http.Request) {
+	message := "too many requests"
+	s.errorResponse(w, r, http.StatusTooManyRequests, message)
+}

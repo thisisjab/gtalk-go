@@ -72,8 +72,8 @@ func loadAPIConfig(env *envreader.EnvReader, cfg *api.Config) {
 	flag.StringVar(&cfg.Version, "version", env.String("VERSION", "1.0"), "server version (1.0 by default).")
 
 	// CORS
-	flag.StringVar(&cfg.Cors.AllowedHeaders, "cors-allowed-headers", env.String("CORS_ALLOWED_HEADERS", "Content-Type, Authorization"), "Allowed CORS headers (comma separated)")
-	flag.StringVar(&cfg.Cors.AllowedMethods, "cors-allowed-methods", env.String("CORS_ALLOWED_METHODS", "POST, PATCH, DELETE"), "Allowed CORS methods (comma separated)")
+	flag.StringVar(&cfg.Cors.AllowedHeaders, "cors-allowed-headers", env.String("CORS_ALLOWED_HEADERS", "Content-Type, Authorization"), "allowed CORS headers (comma separated)")
+	flag.StringVar(&cfg.Cors.AllowedMethods, "cors-allowed-methods", env.String("CORS_ALLOWED_METHODS", "POST, PATCH, DELETE"), "allowed CORS methods (comma separated)")
 	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", func(val string) error {
 		if val == "" {
 			val = env.String("CORS_TRUSTED_ORIGINS", "")
@@ -83,6 +83,11 @@ func loadAPIConfig(env *envreader.EnvReader, cfg *api.Config) {
 
 		return nil
 	})
+
+	// Rate Limiter
+	flag.IntVar(&cfg.RateLimiter.Rps, "rate-limiter-rps", env.Int("RATE_LIMITER_RPS", 4), "rate limiter requests per second")
+	flag.IntVar(&cfg.RateLimiter.Burst, "rate-limiter-burst", env.Int("RATE_LIMITER_BURST", 2), "rate limiter burst size")
+	flag.BoolVar(&cfg.RateLimiter.Enabled, "rate-limiter-enabled", env.Bool("RATE_LIMITER_ENABLED", false), "rate limiter enabled (false by default)")
 }
 
 func loadDatabaseConfig(env *envreader.EnvReader, cfg *database.Config) {
