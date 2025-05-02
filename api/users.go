@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/thisisjab/gchat-go/internal/data"
 	"github.com/thisisjab/gchat-go/internal/validator"
@@ -37,6 +38,7 @@ func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: wrap in transaction
 	if err := s.models.User.Insert(user); err != nil {
 		switch {
 		case errors.Is(err, data.ErrUserDuplicateUsername):
@@ -50,6 +52,14 @@ func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	_, err := s.models.Token.New(user.ID, 1*time.Hour, data.ScopeAccountActivation)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// TODO: send activation email
 
 	if err := s.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil); err != nil {
 		s.serverErrorResponse(w, r, err)
