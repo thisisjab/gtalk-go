@@ -8,5 +8,10 @@ CREATE TABLE users (
     email_verified_at TIMESTAMPTZ,
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
     bio TEXT,
-    password_hash bytea NOT NULL
+    password_hash bytea NOT NULL,
+    -- Ensure users can't be active unless email is verified
+    CONSTRAINT email_verified_check CHECK (
+        email_verified_at IS NOT NULL
+        OR is_active = FALSE
+    )
 );
