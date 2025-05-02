@@ -1,0 +1,36 @@
+{{define "subject"}}Activate Your Gtalk Account{{end}}
+
+{{define "plainBody"}}
+Hi,
+
+To activate your Gtalk account, please send a request to the `POST /v1/users/activation` endpoint with the following JSON body:
+
+{"token": "{{.activationToken}}"}
+
+This is a one-time use token and will expire in 15 minutes.
+
+Thank you,
+The Gtalk Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width" />
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    </head>
+    <body>
+        <p>Hi,</p>
+        <p>To activate your Gtalk account, please send a request to the <code>POST /v1/users/activation</code> endpoint with the following JSON body:</p>
+        <pre>
+            <code>
+                {"token": "{{.activationToken}}"}
+            </code>
+        </pre>
+        <p>This is a one-time use token and will expire in 15 minutes.</p>
+        <p>Thank you,</p>
+        <p>The Gtalk Team</p>
+    </body>
+</html>
+{{end}}

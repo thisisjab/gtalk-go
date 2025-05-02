@@ -53,13 +53,24 @@ func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := s.models.Token.New(user.ID, 1*time.Hour, data.ScopeAccountActivation)
+	token, err := s.models.Token.New(user.ID, 1*time.Hour, data.ScopeAccountActivation)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
 	}
 
-	// TODO: send activation email
+	s.background(func() {
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+			"userID":          user.ID,
+		}
+
+		err := s.mailer.Send(user.Email, "user_account_activation.tmpl", data)
+
+		if err != nil {
+			s.logger.Error("error sending welcome email to user", "user_id", user.ID, "error", err)
+		}
+	})
 
 	if err := s.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil); err != nil {
 		s.serverErrorResponse(w, r, err)
