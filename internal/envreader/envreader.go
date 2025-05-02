@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type EnvReader struct {
@@ -61,6 +62,20 @@ func (r *EnvReader) Choice(key string, choices []string, fallback string) string
 		if strings.EqualFold(value, choice) {
 			return choice
 		}
+	}
+
+	return fallback
+}
+
+func (r *EnvReader) Duration(key string, fallback time.Duration) time.Duration {
+	value := r.String(key, "")
+
+	if value == "" {
+		return fallback
+	}
+
+	if d, err := time.ParseDuration(value); err == nil {
+		return d
 	}
 
 	return fallback
