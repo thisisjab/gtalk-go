@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/thisisjab/gchat-go/internal/data"
+	"github.com/thisisjab/gchat-go/internal/mailer"
 )
 
 type APIServer struct {
 	config *Config
+	mailer *mailer.Mailer
 	models *data.Models
 	logger *slog.Logger
 	wg     sync.WaitGroup
@@ -28,9 +30,10 @@ type Config struct {
 	Version     string
 }
 
-func NewServer(cfg *Config, db *sql.DB, logger *slog.Logger) *APIServer {
+func NewServer(cfg *Config, db *sql.DB, mailer *mailer.Mailer, logger *slog.Logger) *APIServer {
 	return &APIServer{
 		config: cfg,
+		mailer: mailer,
 		models: data.NewModels(db),
 		logger: logger,
 	}
