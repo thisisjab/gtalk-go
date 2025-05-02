@@ -90,6 +90,36 @@ func ValidateUser(v *validator.Validator, user *User) {
 	}
 }
 
+func (m UserModel) GetByEmail(email string) (*User, error) {
+	query := `
+		SELECT id, email, password_hash, is_active
+		FROM users
+		WHERE email = $1
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	user := &User{}
+
+	err := m.DB.QueryRowContext(ctx, query, email).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Password.hash,
+		&user.IsActive,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoRecordFound
+		default:
+			return nil, err
+		}
+	}
+
+	return user, nil
+}
+
 func (m UserModel) Insert(user *User) error {
 	query := `
 		INSERT INTO users (username, email, password_hash, is_active, bio)

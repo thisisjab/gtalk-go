@@ -12,6 +12,9 @@ func (s *APIServer) routes() http.Handler {
 	// Healthcheck
 	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleHealthCheckGET)
 
+	// Authentication
+	router.RegisterHandlerFunc(http.MethodPost, "/auth/token", s.handleCreateAccessTokenPOST)
+
 	// Users
 	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handleUserPOST)
 	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handleUserAccountActivatePOST)

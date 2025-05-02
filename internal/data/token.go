@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	ScopeAccountActivation = "account:activation"
+	ScopeAccountActivation    = "account:activation"
+	ScopeAuthenticationAccess = "auth:access"
 )
 
 type Token struct {

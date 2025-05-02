@@ -46,3 +46,8 @@ func (s *APIServer) rateLimitExceededResponse(w http.ResponseWriter, r *http.Req
 	message := "too many requests"
 	s.errorResponse(w, r, http.StatusTooManyRequests, message)
 }
+
+func (s *APIServer) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
+	message := "invalid credentials provided"
+	s.errorResponse(w, r, http.StatusUnauthorized, message)
+}
