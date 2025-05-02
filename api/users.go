@@ -9,7 +9,7 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
-func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleUserPOST(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Username string  `json:"username"`
 		Email    string  `json:"email"`
@@ -78,7 +78,7 @@ func (s *APIServer) handlerPostUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *APIServer) handlerPostUserAccountActivate(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleUserAccountActivatePOST(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		TokenPlaintext string `json:"token"`
 	}

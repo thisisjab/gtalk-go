@@ -10,11 +10,11 @@ func (s *APIServer) routes() http.Handler {
 	router := NewRouter("/api/v1")
 
 	// Healthcheck
-	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleGetHealthCheck)
+	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleHealthCheckGET)
 
 	// Users
-	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handlerPostUser)
-	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handlerPostUserAccountActivate)
+	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handleUserPOST)
+	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handleUserAccountActivatePOST)
 
 	// Middlewares
 	router.RegisterMiddlewares(
