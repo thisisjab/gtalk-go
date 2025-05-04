@@ -7,7 +7,11 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
+
+	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
 type envelope map[string]any
@@ -84,4 +88,20 @@ func (s *APIServer) readJSON(w http.ResponseWriter, r *http.Request, dst any) er
 	}
 
 	return nil
+}
+
+func (s *APIServer) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+	value := qs.Get(key)
+
+	if value == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		v.AddError(key, "must be an integer")
+		return defaultValue
+	}
+
+	return i
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	filters "github.com/thisisjab/gchat-go/internal/filter"
 )
 
 const (
@@ -29,9 +30,10 @@ type ConversationWithPreview struct {
 	Preview ConversationMessage `json:"preview"`
 }
 
-func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID) ([]*ConversationWithPreview, error) {
+func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, filters.PaginationMetadata, error) {
 	query := `
 	SELECT
+		count(*) OVER() AS total_records,
 		c.id, c.name, c.type, c.created_at,
 		m.id, m.content, m.type, m.sender_id, m.created_at, m.updated_at
 	FROM conversations c
@@ -44,22 +46,28 @@ func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID) (
 		LIMIT 1
 	) m ON true
 	WHERE conversation_participants.user_id = $1
+	LIMIT $2 OFFSET $3
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	rows, err := cm.DB.QueryContext(ctx, query, userID)
+	args := []any{userID, f.Limit(), f.Offset()}
+
+	rows, err := cm.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, filters.PaginationMetadata{}, err
 	}
 	defer rows.Close()
 
+	totalRecords := 0
 	conversations := make([]*ConversationWithPreview, 0)
+
 	for rows.Next() {
 		var c Conversation
 		var p ConversationMessage
 		if err := rows.Scan(
+			&totalRecords,
 			&c.ID,
 			&c.Name,
 			&c.Type,
@@ -71,14 +79,16 @@ func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID) (
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, filters.PaginationMetadata{}, err
 		}
 		conversations = append(conversations, &ConversationWithPreview{Conversation: c, Preview: p})
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, filters.PaginationMetadata{}, err
 	}
 
-	return conversations, nil
+	paginationMetadata := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+
+	return conversations, paginationMetadata, nil
 }
