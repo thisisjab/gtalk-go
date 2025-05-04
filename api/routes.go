@@ -19,6 +19,9 @@ func (s *APIServer) routes() http.Handler {
 	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handleUserPOST)
 	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handleUserAccountActivatePOST)
 
+	// Conversations
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations", s.requireActivatedUser(s.handleConversationsGET))
+
 	// Middlewares
 	router.RegisterMiddlewares(
 		s.logRequestMiddleware,
