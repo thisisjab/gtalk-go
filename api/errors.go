@@ -25,8 +25,13 @@ func (s *APIServer) errorResponse(w http.ResponseWriter, r *http.Request, status
 func (s *APIServer) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	s.logError(r, err)
 
-	message := "Internal server error"
+	message := "internal server error"
 	s.errorResponse(w, r, http.StatusInternalServerError, message)
+}
+
+func (s *APIServer) notFoundResponse(w http.ResponseWriter, r *http.Request) {
+	message := "requested resource could not be found"
+	s.errorResponse(w, r, http.StatusNotFound, message)
 }
 
 func (s *APIServer) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
