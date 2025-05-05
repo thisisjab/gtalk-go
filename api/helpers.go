@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/julienschmidt/httprouter"
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
@@ -104,4 +106,15 @@ func (s *APIServer) readIntQuery(qs url.Values, key string, defaultValue int, v 
 	}
 
 	return i
+}
+
+func (s *APIServer) readUUIDParam(key string, r *http.Request) (*uuid.UUID, error) {
+	params := httprouter.ParamsFromContext(r.Context())
+
+	value, err := uuid.Parse(params.ByName(key))
+	if err != nil {
+		return nil, errors.New("invalid uuid value")
+	}
+
+	return &value, nil
 }
