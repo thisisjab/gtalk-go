@@ -30,7 +30,7 @@ type ConversationWithPreview struct {
 	Preview ConversationMessage `json:"preview"`
 }
 
-func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
+func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER() AS total_records,

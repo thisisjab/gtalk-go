@@ -22,7 +22,7 @@ func (s *APIServer) handleConversationsGET(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	conversations, paginationMetadata, err := s.models.Conversation.GetUserConversationsWithPreview(user.ID, f)
+	conversations, paginationMetadata, err := s.models.Conversation.GetAllWithPreview(user.ID, f)
 	if err != nil {
 		switch {
 		case errors.Is(err, filter.InvalidPageError):
