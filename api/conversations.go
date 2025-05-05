@@ -60,9 +60,15 @@ func (s *APIServer) handlePrivateConversationMessagesGET(w http.ResponseWriter, 
 	}
 
 	// Check other user exists
-	if otherUserExists := s.models.User.ExistsByID(*otherUserID); !otherUserExists {
-		s.notFoundResponse(w, r)
+	otherUser, err := s.models.User.GetByID(*otherUserID)
 
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecordFound):
+			s.notFoundResponse(w, r)
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -86,7 +92,7 @@ func (s *APIServer) handlePrivateConversationMessagesGET(w http.ResponseWriter, 
 		return
 	}
 
-	if err := s.writeJSON(w, http.StatusOK, envelope{"messages": messages, "pagination": paginationMetadata}, nil); err != nil {
+	if err := s.writeJSON(w, http.StatusOK, envelope{"messages": messages, "other_user": otherUser, "pagination": paginationMetadata}, nil); err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
 	}
