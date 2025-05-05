@@ -90,7 +90,7 @@ func (s *APIServer) readJSON(w http.ResponseWriter, r *http.Request, dst any) er
 	return nil
 }
 
-func (s *APIServer) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
+func (s *APIServer) readIntQuery(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
 	value := qs.Get(key)
 
 	if value == "" {

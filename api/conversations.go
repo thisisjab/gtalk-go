@@ -13,8 +13,8 @@ func (s *APIServer) handleConversationsGET(w http.ResponseWriter, r *http.Reques
 
 	v := validator.New()
 	f := filter.Filters{
-		Page:     s.readInt(r.URL.Query(), "page", 1, v),
-		PageSize: s.readInt(r.URL.Query(), "page_size", 10, v),
+		Page:     s.readIntQuery(r.URL.Query(), "page", 1, v),
+		PageSize: s.readIntQuery(r.URL.Query(), "page_size", 10, v),
 	}
 
 	if !v.Valid() {
