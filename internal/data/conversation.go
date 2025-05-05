@@ -127,3 +127,42 @@ func (cm *ConversationModel) GetPrivateBetweenUsers(userID, otherUserID uuid.UUI
 
 	return conversation, nil
 }
+
+func (cm *ConversationModel) CreateBetweenUsers(userID, otherUserID uuid.UUID) (*Conversation, error) {
+	query := `
+	INSERT INTO conversations (type)
+	VALUES ('private')
+	RETURNING id, type, created_at, updated_at
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tx, err := cm.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// Create conversation
+	conversation := &Conversation{}
+	err = tx.QueryRowContext(ctx, query).Scan(&conversation.ID, &conversation.Type, &conversation.CreatedAt, &conversation.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add participants
+	query = `INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)`
+	_, err = tx.ExecContext(ctx, query, conversation.ID, userID, otherUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Commit transaction
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return conversation, nil
+}

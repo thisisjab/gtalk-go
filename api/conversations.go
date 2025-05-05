@@ -91,3 +91,78 @@ func (s *APIServer) handlePrivateConversationMessagesGET(w http.ResponseWriter, 
 		return
 	}
 }
+
+func (s *APIServer) handlerPrivateMessagePOST(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Type    string `json:"type"`
+		Content string `json:"content"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+		return
+	}
+
+	user := s.contextGetUser(r)
+
+	v := validator.New()
+
+	otherUserID, err := s.readUUIDParam("other_user_id", r)
+	if err != nil {
+		v.AddError("other_user_id", err.Error())
+	}
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	// Check other user exists
+	if otherUserExists := s.models.User.ExistsByID(*otherUserID); !otherUserExists {
+		s.notFoundResponse(w, r)
+
+		return
+	}
+
+	// Get the conversation
+	conversation, err := s.models.Conversation.GetPrivateBetweenUsers(user.ID, *otherUserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecordFound):
+			// If conversation doesn't exist, create it.
+			conversation, err = s.models.Conversation.CreateBetweenUsers(user.ID, *otherUserID)
+
+			if err != nil {
+				s.serverErrorResponse(w, r, err)
+				return
+			}
+		default:
+			s.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
+	// Prepare and validate message before inserting
+	msg := &data.ConversationMessage{
+		ConversationID: conversation.ID,
+		SenderID:       user.ID,
+		Content:        input.Content,
+		Type:           input.Type,
+	}
+
+	data.ValidateConversationMessage(v, msg)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	if err := s.models.ConversationMessage.Insert(msg); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := s.writeJSON(w, http.StatusCreated, envelope{"message": msg}, nil); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+}
