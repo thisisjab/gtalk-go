@@ -30,7 +30,7 @@ type ConversationWithPreview struct {
 	Preview ConversationMessage `json:"preview"`
 }
 
-func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, filters.PaginationMetadata, error) {
+func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER() AS total_records,
@@ -56,7 +56,7 @@ func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f
 
 	rows, err := cm.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, filters.PaginationMetadata{}, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
@@ -79,16 +79,19 @@ func (cm *ConversationModel) GetUserConversationsWithPreview(userID uuid.UUID, f
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		); err != nil {
-			return nil, filters.PaginationMetadata{}, err
+			return nil, nil, err
 		}
 		conversations = append(conversations, &ConversationWithPreview{Conversation: c, Preview: p})
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, filters.PaginationMetadata{}, err
+		return nil, nil, err
 	}
 
-	paginationMetadata := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	paginationMetadata, err := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return conversations, paginationMetadata, nil
 }

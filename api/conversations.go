@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/thisisjab/gchat-go/internal/filter"
@@ -23,7 +24,12 @@ func (s *APIServer) handleConversationsGET(w http.ResponseWriter, r *http.Reques
 
 	conversations, paginationMetadata, err := s.models.Conversation.GetUserConversationsWithPreview(user.ID, f)
 	if err != nil {
-		s.serverErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err, filter.InvalidPageError):
+			s.badRequestResponse(w, r, err)
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
 		return
 	}
 

@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"errors"
 	"strings"
 
 	"slices"
@@ -56,12 +57,25 @@ type PaginationMetadata struct {
 	TotalRecords int `json:"total_records,omitempty"`
 }
 
-func CalculatePaginationMetadata(totalRecords, page, pageSize int) PaginationMetadata {
+var InvalidPageError = errors.New("invalid page")
+
+func CalculatePaginationMetadata(totalRecords, page, pageSize int) (*PaginationMetadata, error) {
 	if totalRecords == 0 {
-		return PaginationMetadata{}
+		if page == 1 {
+			return &PaginationMetadata{
+				CurrentPage:  page,
+				PageSize:     pageSize,
+				FirstPage:    1,
+				LastPage:     1,
+				TotalRecords: 0,
+			}, nil
+		}
+
+		return nil, InvalidPageError
+
 	}
 
-	return PaginationMetadata{
+	return &PaginationMetadata{
 		CurrentPage: page,
 		PageSize:    pageSize,
 		FirstPage:   1,
@@ -69,5 +83,5 @@ func CalculatePaginationMetadata(totalRecords, page, pageSize int) PaginationMet
 		// when total_records is not divisible by page_size, it gets rounded down and shows one less page.
 		LastPage:     (totalRecords + pageSize - 1) / pageSize,
 		TotalRecords: totalRecords,
-	}
+	}, nil
 }
