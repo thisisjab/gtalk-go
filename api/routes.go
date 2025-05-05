@@ -22,6 +22,9 @@ func (s *APIServer) routes() http.Handler {
 	// Conversations
 	router.RegisterHandlerFunc(http.MethodGet, "/conversations", s.requireActivatedUser(s.handleConversationsGET))
 
+	// Conversation Messages
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handlePrivateConversationMessagesGET))
+
 	// Middlewares
 	router.RegisterMiddlewares(
 		s.logRequestMiddleware,

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/thisisjab/gchat-go/internal/validator"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -240,4 +241,17 @@ func (m UserModel) GetFromToken(tokenPlaintext, scope string) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (m *UserModel) ExistsByID(id uuid.UUID) bool {
+	query := `SELECT id FROM users WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var foundID uuid.UUID
+
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(&foundID)
+
+	return err == nil
 }

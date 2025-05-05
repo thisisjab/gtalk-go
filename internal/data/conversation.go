@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -94,4 +95,35 @@ func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filte
 	}
 
 	return conversations, paginationMetadata, nil
+}
+
+func (cm *ConversationModel) GetPrivateBetweenUsers(userID, otherUserID uuid.UUID) (*Conversation, error) {
+	query := `
+	SELECT c.id, c.created_at FROM conversations c
+    JOIN conversation_participants cp1
+        ON c.id = cp1.conversation_id
+    JOIN conversation_participants cp2
+        ON c .id = cp2.conversation_id
+    JOIN users u1 ON u1.id = cp1.user_id
+    JOIN users u2 ON u2.id = cp2.user_id
+    WHERE cp1.user_id = $1
+        AND cp2.user_id = $2
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conversation := &Conversation{}
+
+	err := cm.DB.QueryRowContext(ctx, query, userID, otherUserID).Scan(&conversation.ID, &conversation.CreatedAt)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoRecordFound
+		default:
+			return nil, err
+		}
+	}
+
+	return conversation, nil
 }
