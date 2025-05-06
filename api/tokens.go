@@ -9,7 +9,7 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
-func (s *APIServer) handleCreateAccessTokenPOST(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleCreateAccessToken(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email             string `json:"email"`
 		PasswordPlaintext string `json:"password"`

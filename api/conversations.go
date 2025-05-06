@@ -9,7 +9,7 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
-func (s *APIServer) handleConversationsGET(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleListConversations(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
 	v := validator.New()
@@ -40,7 +40,7 @@ func (s *APIServer) handleConversationsGET(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (s *APIServer) handlePrivateConversationMessagesGET(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) hadleListPrivateConversationMessages(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
 	v := validator.New()
@@ -98,7 +98,7 @@ func (s *APIServer) handlePrivateConversationMessagesGET(w http.ResponseWriter, 
 	}
 }
 
-func (s *APIServer) handlerPrivateMessagePOST(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Type    string `json:"type"`
 		Content string `json:"content"`
@@ -173,7 +173,7 @@ func (s *APIServer) handlerPrivateMessagePOST(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (s *APIServer) handleGroupConversationMessagesGET(w http.ResponseWriter, r *http.Request) {
+func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
 	v := validator.New()

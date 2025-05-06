@@ -10,22 +10,22 @@ func (s *APIServer) routes() http.Handler {
 	router := NewRouter("/api/v1")
 
 	// Healthcheck
-	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleHealthCheckGET)
+	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleHealthCheck)
 
 	// Authentication
-	router.RegisterHandlerFunc(http.MethodPost, "/auth/token", s.handleCreateAccessTokenPOST)
+	router.RegisterHandlerFunc(http.MethodPost, "/auth/token", s.handleCreateAccessToken)
 
 	// Users
-	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handleUserPOST)
-	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handleUserAccountActivatePOST)
+	router.RegisterHandlerFunc(http.MethodPost, "/users", s.handleCreateUser)
+	router.RegisterHandlerFunc(http.MethodPost, "/users/account/activate", s.handleActivateUserAccount)
 
 	// Conversations
-	router.RegisterHandlerFunc(http.MethodGet, "/conversations", s.requireActivatedUser(s.handleConversationsGET))
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations", s.requireActivatedUser(s.handleListConversations))
 
 	// Conversation Messages
-	router.RegisterHandlerFunc(http.MethodGet, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handlePrivateConversationMessagesGET))
-	router.RegisterHandlerFunc(http.MethodPost, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handlerPrivateMessagePOST))
-	router.RegisterHandlerFunc(http.MethodGet, "/conversations/group/:group_id/messages", s.requireActivatedUser(s.handleGroupConversationMessagesGET))
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.hadleListPrivateConversationMessages))
+	router.RegisterHandlerFunc(http.MethodPost, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handleCreatePrivateMessage))
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations/group/:group_id/messages", s.requireActivatedUser(s.handleListGroupMessages))
 
 	// Middlewares
 	router.RegisterMiddlewares(
