@@ -22,7 +22,10 @@ func ValidateFilters(v *validator.Validator, f Filters) {
 	v.Check(f.PageSize > 0, "page_size", "must be greater than zero")
 	v.Check(f.PageSize <= 100, "page_size", "must be a maximum of 100")
 
-	v.Check(validator.PermittedValue(f.Sort, f.SortSafeList...), "sort", "invalid sort value")
+	// Check sorting only if both sort and sort safe list are provided.
+	if len(f.SortSafeList) != 0 && f.Sort != "" {
+		v.Check(validator.PermittedValue(f.Sort, f.SortSafeList...), "sort", "invalid sort value")
+	}
 }
 
 func (f Filters) SortColumn() string {
