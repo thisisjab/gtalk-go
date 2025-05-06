@@ -172,3 +172,56 @@ func (s *APIServer) handlerPrivateMessagePOST(w http.ResponseWriter, r *http.Req
 		return
 	}
 }
+
+func (s *APIServer) handleGroupConversationMessagesGET(w http.ResponseWriter, r *http.Request) {
+	user := s.contextGetUser(r)
+
+	v := validator.New()
+
+	groupID, err := s.readUUIDParam("group_id", r)
+	if err != nil {
+		v.AddError("group_id", err.Error())
+	}
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	participationExists, err := s.models.ConversationParticipant.Exists(user.ID, *groupID, data.ConversationTypeGroup)
+
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if !participationExists {
+		s.notFoundResponse(w, r)
+		return
+	}
+
+	f := filter.Filters{
+		Page:         s.readIntQuery(r.URL.Query(), "page", 1, v),
+		PageSize:     s.readIntQuery(r.URL.Query(), "page_size", 10, v),
+		Sort:         "id",
+		SortSafeList: []string{"id"},
+	}
+
+	filter.ValidateFilters(v, f)
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	messages, paginationMetadata, err := s.models.ConversationMessage.GetAllForGroup(*groupID, f)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := s.writeJSON(w, http.StatusOK, envelope{"messages": messages, "pagination": paginationMetadata}, nil); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+}

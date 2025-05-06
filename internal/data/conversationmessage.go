@@ -34,6 +34,12 @@ type ConversationMessage struct {
 	// TODO: add attachment
 }
 
+type ConversationMessageWithSender struct {
+	ConversationMessage
+	// Since sender id is omitted when empty, don't need exclude here; it's already excluded in the query.
+	Sender User `json:"sender"`
+}
+
 func ValidateConversationMessage(v *validator.Validator, cm *ConversationMessage) {
 	v.Check(cm.ConversationID != uuid.Nil, "conversation_id", "must be provided")
 	v.Check(cm.SenderID != uuid.Nil, "sender_id", "must be provided")
@@ -78,6 +84,81 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 			&m.Content,
 			&m.CreatedAt,
 			&m.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, nil, err
+		}
+
+		messages = append(messages, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	paginationMetadata, err := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return messages, paginationMetadata, nil
+}
+
+func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithSender, *filter.PaginationMetadata, error) {
+	query := `
+	SELECT
+		count(*) OVER(),
+		m.id,
+		m.type,
+		m.content,
+		m.created_at,
+		m.updated_at,
+		u.id,
+		u.username,
+		u.email,
+		u.bio,
+		u.is_active
+	FROM conversation_messages m
+	JOIN users u ON u.id = m.sender_id
+	WHERE m.conversation_id = $1
+	LIMIT $2 OFFSET $3
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rows, err := cmm.DB.QueryContext(ctx, query, conversationID, f.Limit(), f.Offset())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer rows.Close()
+
+	messages := make([]*ConversationMessageWithSender, 0)
+	totalRecords := 0
+
+	for rows.Next() {
+		m := &ConversationMessageWithSender{
+			ConversationMessage: ConversationMessage{
+				BaseModel: BaseModel{
+					ID: conversationID,
+				},
+			},
+		}
+
+		err = rows.Scan(
+			&totalRecords,
+			&m.ID,
+			&m.Type,
+			&m.Content,
+			&m.CreatedAt,
+			&m.UpdatedAt,
+			&m.Sender.ID,
+			&m.Sender.Username,
+			&m.Sender.Email,
+			&m.Sender.Bio,
+			&m.Sender.IsActive,
 		)
 
 		if err != nil {
