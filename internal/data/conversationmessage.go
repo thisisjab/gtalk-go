@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/thisisjab/gchat-go/internal/filter"
-	filters "github.com/thisisjab/gchat-go/internal/filter"
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
@@ -97,7 +96,7 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 		return nil, nil, err
 	}
 
-	paginationMetadata, err := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	paginationMetadata, err := filter.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -172,7 +171,7 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 		return nil, nil, err
 	}
 
-	paginationMetadata, err := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	paginationMetadata, err := filter.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
 	if err != nil {
 		return nil, nil, err
 	}
