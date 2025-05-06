@@ -9,6 +9,8 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
+// handleCreateUser handles the creation of a new user account through POST /users.
+// An activation email is sent to the user's email address.
 func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Username string  `json:"username"`
@@ -78,6 +80,7 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleActivateUserAccount handles the activation of a user account through POST /users/activate.
 func (s *APIServer) handleActivateUserAccount(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		TokenPlaintext string `json:"token"`

@@ -23,7 +23,7 @@ func (s *APIServer) routes() http.Handler {
 	router.RegisterHandlerFunc(http.MethodGet, "/conversations", s.requireActivatedUser(s.handleListConversations))
 
 	// Conversation Messages
-	router.RegisterHandlerFunc(http.MethodGet, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.hadleListPrivateConversationMessages))
+	router.RegisterHandlerFunc(http.MethodGet, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handleListPrivateConversationMessages))
 	router.RegisterHandlerFunc(http.MethodPost, "/conversations/private/:other_user_id/messages", s.requireActivatedUser(s.handleCreatePrivateMessage))
 	router.RegisterHandlerFunc(http.MethodGet, "/conversations/group/:group_id/messages", s.requireActivatedUser(s.handleListGroupMessages))
 

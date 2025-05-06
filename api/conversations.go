@@ -9,6 +9,8 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
+// handleListConversations handles the GET /conversations endpoint.
+// It lists all conversations (group/private) for the authenticated user.
 func (s *APIServer) handleListConversations(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
@@ -40,7 +42,10 @@ func (s *APIServer) handleListConversations(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (s *APIServer) hadleListPrivateConversationMessages(w http.ResponseWriter, r *http.Request) {
+// handleListPrivateConversationMessages handles the GET /conversations/private/:other_user_id/messages endpoint.
+// It lists all messages in a private chat if other_user_id is a valid user id.
+// Response includes `other_user` as well.
+func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
 	v := validator.New()
@@ -98,6 +103,8 @@ func (s *APIServer) hadleListPrivateConversationMessages(w http.ResponseWriter, 
 	}
 }
 
+// handleCreatePrivateMessage handles the POST /conversations/private/:other_user_id/messages endpoint.
+// It creates a new message in a private chat if `other_user_id` is a valid user id.
 func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Type    string `json:"type"`
@@ -173,6 +180,9 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// handleListGroupMessages handles the GET /conversations/groups/:group_id/messages endpoint.
+// It retrieves a list of messages in a group conversation including the group information.
+// If user is not a member of the group, a 404 is raised.
 func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Request) {
 	user := s.contextGetUser(r)
 
@@ -220,6 +230,7 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// TODO: include `group` in response.
 	if err := s.writeJSON(w, http.StatusOK, envelope{"messages": messages, "pagination": paginationMetadata}, nil); err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
