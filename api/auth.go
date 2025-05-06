@@ -9,6 +9,7 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
+// authenticate middleware checks the authorization header and puts a user (either anonymous or authenticated) in the context.
 func (s *APIServer) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Vary", "Authorization")
@@ -54,6 +55,7 @@ func (s *APIServer) authenticate(next http.Handler) http.Handler {
 	})
 }
 
+// requireAuthenticatedUser middleware ensures the user is authenticated.
 func (s *APIServer) requireAuthenticatedUser(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := s.contextGetUser(r)
@@ -67,6 +69,7 @@ func (s *APIServer) requireAuthenticatedUser(next http.HandlerFunc) http.Handler
 	})
 }
 
+// requireActivatedUser middleware ensures the user is authenticated and activated.
 func (s *APIServer) requireActivatedUser(next http.HandlerFunc) http.HandlerFunc {
 	fn := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := s.contextGetUser(r)

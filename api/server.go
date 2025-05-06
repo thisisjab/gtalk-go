@@ -102,6 +102,7 @@ func (s *APIServer) Start() error {
 
 }
 
+// background runs a function in a goroutine and logs any errors.
 func (s *APIServer) background(fn func()) {
 	s.wg.Add(1)
 

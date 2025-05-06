@@ -16,8 +16,10 @@ import (
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
+// envelope is used when returning JSON responses. Any JSON object must be enveloped.
 type envelope map[string]any
 
+// writeJSON writes a JSON response with the given status code and enveloped data.
 func (s *APIServer) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.Marshal(data)
 
@@ -36,6 +38,8 @@ func (s *APIServer) writeJSON(w http.ResponseWriter, status int, data envelope, 
 	return nil
 }
 
+// readJSON is used when reading JSON requests. It reads the request body into the destination.
+// If any expected error occurs, it is returned and can be handled as a bad request.
 func (s *APIServer) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	const maxBytes = 1_048_576
 
@@ -92,6 +96,7 @@ func (s *APIServer) readJSON(w http.ResponseWriter, r *http.Request, dst any) er
 	return nil
 }
 
+// readIntQuery reads an integer value from the query string.
 func (s *APIServer) readIntQuery(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
 	value := qs.Get(key)
 
@@ -108,6 +113,7 @@ func (s *APIServer) readIntQuery(qs url.Values, key string, defaultValue int, v 
 	return i
 }
 
+// readUUIDParam reads a UUID value from the query string.
 func (s *APIServer) readUUIDParam(key string, r *http.Request) (*uuid.UUID, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 
