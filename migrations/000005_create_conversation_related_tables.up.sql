@@ -9,8 +9,11 @@ CREATE TABLE IF NOT EXISTS conversations (
     CHECK (type IN ('private', 'group')),
     -- Private conversation has no name
     CHECK (
-        name IS NULL
-        OR type = 'group'
+        (
+            type = 'group'
+            AND name IS NOT NULL
+        )
+        OR name IS NULL
     )
 );
 
