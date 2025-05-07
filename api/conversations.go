@@ -71,11 +71,7 @@ func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter,
 		return
 	}
 
-	otherUserID, err := s.readUUIDParam("other_user_id", r)
-	if err != nil {
-		v.AddError("other_user_id", err.Error())
-	}
-
+	otherUserID := s.readUUIDParam("other_user_id", r, v)
 	if !v.Valid() {
 		s.failedValidationResponse(w, r, v.Errors())
 		return
@@ -137,11 +133,7 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 
 	v := validator.New()
 
-	otherUserID, err := s.readUUIDParam("other_user_id", r)
-	if err != nil {
-		v.AddError("other_user_id", err.Error())
-	}
-
+	otherUserID := s.readUUIDParam("other_user_id", r, v)
 	if !v.Valid() {
 		s.failedValidationResponse(w, r, v.Errors())
 		return
@@ -205,11 +197,7 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 
 	v := validator.New()
 
-	groupID, err := s.readUUIDParam("group_id", r)
-	if err != nil {
-		v.AddError("group_id", err.Error())
-	}
-
+	groupID := s.readUUIDParam("group_id", r, v)
 	if !v.Valid() {
 		s.failedValidationResponse(w, r, v.Errors())
 		return

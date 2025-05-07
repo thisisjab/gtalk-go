@@ -114,13 +114,15 @@ func (s *APIServer) readIntQuery(qs url.Values, key string, defaultValue int, v 
 }
 
 // readUUIDParam reads a UUID value from the query string.
-func (s *APIServer) readUUIDParam(key string, r *http.Request) (*uuid.UUID, error) {
+func (s *APIServer) readUUIDParam(key string, r *http.Request, v *validator.Validator) *uuid.UUID {
 	params := httprouter.ParamsFromContext(r.Context())
 
 	value, err := uuid.Parse(params.ByName(key))
 	if err != nil {
-		return nil, errors.New("invalid uuid value")
+		v.AddError(key, "invalid uuid")
+
+		return nil
 	}
 
-	return &value, nil
+	return &value
 }
