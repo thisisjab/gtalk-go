@@ -25,6 +25,12 @@ func (s *APIServer) handleListConversations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	filter.ValidateFilters(v, f)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
 	conversations, paginationMetadata, err := s.models.Conversation.GetAllWithPreview(user.ID, f)
 	if err != nil {
 		switch {
@@ -52,6 +58,17 @@ func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter,
 	f := filter.Filters{
 		Page:     s.readIntQuery(r.URL.Query(), "page", 1, v),
 		PageSize: s.readIntQuery(r.URL.Query(), "page_size", 10, v),
+	}
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	filter.ValidateFilters(v, f)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
 	}
 
 	otherUserID, err := s.readUUIDParam("other_user_id", r)
