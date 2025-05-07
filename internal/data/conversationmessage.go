@@ -25,18 +25,26 @@ type ConversationMessageModel struct {
 
 type ConversationMessage struct {
 	BaseModel
-	ConversationID uuid.UUID `json:"-"`
-	SenderID       uuid.UUID `json:"sender_id,omitempty"`
-	Content        string    `json:"content"`
-	Type           string    `json:"type"`
-	CreatedAt      time.Time `json:"created_at"`
+	ConversationID   uuid.UUID  `json:"-"`
+	SenderID         uuid.UUID  `json:"sender_id,omitempty"`
+	Content          string     `json:"content"`
+	RepliedMessageID *uuid.UUID `json:"-"`
+	Type             string     `json:"type"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 	// TODO: add attachment
 }
 
-type ConversationMessageWithSender struct {
+type ConversationMessageWithRepliedMessage struct {
+	ConversationMessage
+	RepliedMessage *ConversationMessage `json:"replied_message"`
+}
+
+type ConversationMessageWithRepliedMessageAndSender struct {
 	ConversationMessage
 	// Since sender id is omitted when empty, don't need exclude here; it's already excluded in the query.
-	Sender User `json:"sender"`
+	Sender         User                 `json:"sender"`
+	RepliedMessage *ConversationMessage `json:"replied_message"`
 }
 
 func ValidateConversationMessage(v *validator.Validator, cm *ConversationMessage) {
@@ -50,12 +58,17 @@ func ValidateConversationMessage(v *validator.Validator, cm *ConversationMessage
 	v.Check(len(cm.Content) <= 500, "content", "must not be more than 500 bytes long")
 }
 
-func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessage, *filter.PaginationMetadata, error) {
+func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessage, *filter.PaginationMetadata, error) {
 	query := `
-	SELECT count(*) OVER(), id, sender_id, type, content, created_at, updated_at
-	FROM conversation_messages
-	WHERE conversation_id = $1
-	ORDER BY created_at DESC, id DESC
+	SELECT
+		count(*) OVER(),
+		cm.id, cm.sender_id, cm.type, cm.content, cm.created_at, cm.updated_at,
+		r.id, r.sender_id, r.type, r.content, r.created_at, r.updated_at
+	FROM conversation_messages cm
+	LEFT JOIN conversation_messages r
+	ON cm.replied_message_id = r.id
+	WHERE cm.conversation_id = $1
+	ORDER BY cm.created_at DESC, cm.id DESC
 	LIMIT $2 OFFSET $3
 	`
 
@@ -69,11 +82,26 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 
 	defer rows.Close()
 
-	messages := make([]*ConversationMessage, 0)
+	messages := make([]*ConversationMessageWithRepliedMessage, 0)
 	totalRecords := 0
 
 	for rows.Next() {
-		m := &ConversationMessage{ConversationID: conversationID}
+		m := &ConversationMessageWithRepliedMessage{
+			ConversationMessage: ConversationMessage{
+				BaseModel: BaseModel{
+					ID: conversationID,
+				},
+			},
+		}
+
+		var (
+			repliedMessageID        *uuid.UUID
+			repliedMessageSenderID  *uuid.UUID
+			repliedMessageType      *string
+			repliedMessageContent   *string
+			repliedMessageCreatedAt *time.Time
+			repliedMessageUpdatedAt *time.Time
+		)
 
 		err = rows.Scan(
 			&totalRecords,
@@ -83,10 +111,30 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 			&m.Content,
 			&m.CreatedAt,
 			&m.UpdatedAt,
+			&repliedMessageID,
+			&repliedMessageSenderID,
+			&repliedMessageType,
+			&repliedMessageContent,
+			&repliedMessageCreatedAt,
+			&repliedMessageUpdatedAt,
 		)
 
 		if err != nil {
 			return nil, nil, err
+		}
+
+		if repliedMessageID != nil {
+			m.RepliedMessage = &ConversationMessage{
+				BaseModel: BaseModel{
+					ID: *repliedMessageID,
+				},
+				ConversationID: conversationID,
+				SenderID:       *repliedMessageSenderID,
+				Type:           *repliedMessageType,
+				Content:        *repliedMessageContent,
+				CreatedAt:      *repliedMessageCreatedAt,
+				UpdatedAt:      *repliedMessageUpdatedAt,
+			}
 		}
 
 		messages = append(messages, m)
@@ -104,23 +152,18 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 	return messages, paginationMetadata, nil
 }
 
-func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithSender, *filter.PaginationMetadata, error) {
+func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessageAndSender, *filter.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER(),
-		m.id,
-		m.type,
-		m.content,
-		m.created_at,
-		m.updated_at,
-		u.id,
-		u.username,
-		u.email,
-		u.bio,
-		u.is_active
+		m.id, m.type, m.content, m.created_at, m.updated_at,
+		u.id, u.username, u.email, u.bio, u.is_active,
+		r.id, r.sender_id, r.type, r.content, r.created_at, r.updated_at
 	FROM conversation_messages m
 	JOIN users u ON u.id = m.sender_id
+	LEFT JOIN conversation_messages r ON m.replied_message_id = r.id
 	WHERE m.conversation_id = $1
+	ORDER BY m.created_at DESC, m.id ASC
 	LIMIT $2 OFFSET $3
 	`
 
@@ -134,17 +177,26 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 
 	defer rows.Close()
 
-	messages := make([]*ConversationMessageWithSender, 0)
+	messages := make([]*ConversationMessageWithRepliedMessageAndSender, 0)
 	totalRecords := 0
 
 	for rows.Next() {
-		m := &ConversationMessageWithSender{
+		m := &ConversationMessageWithRepliedMessageAndSender{
 			ConversationMessage: ConversationMessage{
 				BaseModel: BaseModel{
 					ID: conversationID,
 				},
 			},
 		}
+
+		var (
+			repliedMessageID        *uuid.UUID
+			repliedMessageSenderID  *uuid.UUID
+			repliedMessageType      *string
+			repliedMessageContent   *string
+			repliedMessageCreatedAt *time.Time
+			repliedMessageUpdatedAt *time.Time
+		)
 
 		err = rows.Scan(
 			&totalRecords,
@@ -158,10 +210,30 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 			&m.Sender.Email,
 			&m.Sender.Bio,
 			&m.Sender.IsActive,
+			&repliedMessageID,
+			&repliedMessageSenderID,
+			&repliedMessageType,
+			&repliedMessageContent,
+			&repliedMessageCreatedAt,
+			&repliedMessageUpdatedAt,
 		)
 
 		if err != nil {
 			return nil, nil, err
+		}
+
+		if repliedMessageID != nil {
+			m.RepliedMessage = &ConversationMessage{
+				BaseModel: BaseModel{
+					ID: *repliedMessageID,
+				},
+				ConversationID: conversationID,
+				SenderID:       *repliedMessageSenderID,
+				Type:           *repliedMessageType,
+				Content:        *repliedMessageContent,
+				CreatedAt:      *repliedMessageCreatedAt,
+				UpdatedAt:      *repliedMessageUpdatedAt,
+			}
 		}
 
 		messages = append(messages, m)

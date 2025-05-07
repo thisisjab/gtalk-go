@@ -17,9 +17,14 @@ const (
 
 type Conversation struct {
 	BaseModel
-	// Name is null if the conversation is private
-	Name *string `json:"name,omitempty"`
-	Type string  `json:"type"`
+	Type string `json:"type"`
+
+	GroupMetadata *GroupMetadata `json:"group_metadata,omitempty"`
+}
+
+type GroupMetadata struct {
+	OwnerID uuid.UUID `json:"owner_id"`
+	Name    string    `json:"name"`
 }
 
 type ConversationModel struct {
@@ -28,17 +33,19 @@ type ConversationModel struct {
 
 type ConversationWithPreview struct {
 	Conversation
-	Preview ConversationMessage `json:"preview"`
+	Preview *ConversationMessage `json:"preview"`
 }
 
 func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER() AS total_records,
-		c.id, c.name, c.type, c.created_at,
+		c.id, c.type, c.created_at,
+		gm.name, gm.owner_id,
 		m.id, m.content, m.type, m.sender_id, m.created_at, m.updated_at
 	FROM conversations c
 	JOIN conversation_participants ON c.id = conversation_participants.conversation_id
+	LEFT JOIN group_metadata gm ON gm.conversation_id = c.id
 	LEFT JOIN LATERAL (
 		SELECT *
 		FROM conversation_messages
@@ -65,24 +72,65 @@ func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filte
 	conversations := make([]*ConversationWithPreview, 0)
 
 	for rows.Next() {
-		var c Conversation
-		var p ConversationMessage
+		var (
+			c Conversation
+
+			// Group metadata
+			groupOwnerID *uuid.UUID
+			groupName    *string
+
+			// Preview message
+			previewMessageID        *uuid.UUID
+			previewMessageContent   *string
+			previewMessageType      *string
+			previewMessageSenderID  *uuid.UUID
+			previewMessageCreatedAt *time.Time
+			previewMessageUpdatedAt *time.Time
+		)
+
 		if err := rows.Scan(
 			&totalRecords,
+			// Conversation
 			&c.ID,
-			&c.Name,
 			&c.Type,
 			&c.CreatedAt,
-			&p.ID,
-			&p.Content,
-			&p.Type,
-			&p.SenderID,
-			&p.CreatedAt,
-			&p.UpdatedAt,
+			// Group metadata
+			&groupName,
+			&groupOwnerID,
+			// Preview message
+			&previewMessageID,
+			&previewMessageContent,
+			&previewMessageType,
+			&previewMessageSenderID,
+			&previewMessageCreatedAt,
+			&previewMessageUpdatedAt,
 		); err != nil {
 			return nil, nil, err
 		}
-		conversations = append(conversations, &ConversationWithPreview{Conversation: c, Preview: p})
+
+		item := ConversationWithPreview{Conversation: c}
+
+		if groupOwnerID != nil {
+			item.GroupMetadata = &GroupMetadata{
+				OwnerID: *groupOwnerID,
+				Name:    *groupName,
+			}
+		}
+
+		if previewMessageID != nil {
+			item.Preview = &ConversationMessage{
+				BaseModel: BaseModel{
+					ID:        *previewMessageID,
+					CreatedAt: *previewMessageCreatedAt,
+					UpdatedAt: *previewMessageUpdatedAt,
+				},
+				Content:  *previewMessageContent,
+				Type:     *previewMessageType,
+				SenderID: *previewMessageSenderID,
+			}
+		}
+
+		conversations = append(conversations, &item)
 	}
 
 	if err := rows.Err(); err != nil {
