@@ -190,20 +190,29 @@ func (m UserModel) Insert(user *User) error {
 
 func (m UserModel) Update(user *User) error {
 	query := `
-		UPDATE users
-		SET
-			username = $1,
-			email = $2,
-			email_verified_at = CASE WHEN $2 = email THEN email_verified_at ELSE NULL END,
-			password_hash = $3,
-			is_active = $4,
-			bio = $5,
-			version = version + 1
-		WHERE id = $6 AND version = $7
-		RETURNING version
+	UPDATE users
+	SET
+		username = $1,
+		email = $2,
+		email_verified_at = $3,
+		password_hash = $4,
+		is_active = $5,
+		bio = $6,
+		version = version + 1
+	WHERE id = $7 AND version = $8
+	RETURNING version
 	`
 
-	args := []any{user.Username, user.Email, user.Password.hash, user.IsActive, user.Bio, user.ID, user.Version}
+	args := []any{
+		user.Username,
+		user.Email,
+		user.EmailVerifiedAt,
+		user.Password.hash,
+		user.IsActive,
+		user.Bio,
+		user.ID,
+		user.Version,
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
