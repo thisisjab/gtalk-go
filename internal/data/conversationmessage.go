@@ -253,15 +253,46 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 
 func (cmm *ConversationMessageModel) Insert(message *ConversationMessage) error {
 	query := `
-	INSERT INTO conversation_messages (conversation_id, sender_id, type, content)
-	VALUES ($1, $2, $3, $4)
+	INSERT INTO conversation_messages (conversation_id, sender_id, type, content, replied_message_id)
+	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id, created_at, updated_at
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	args := []any{message.ConversationID, message.SenderID, message.Type, message.Content}
+	args := []any{message.ConversationID, message.SenderID, message.Type, message.Content, message.RepliedMessageID}
 
 	return cmm.DB.QueryRowContext(ctx, query, args...).Scan(&message.ID, &message.CreatedAt, &message.UpdatedAt)
+}
+
+func (cmm *ConversationMessageModel) BelongsToConversation(messageID, conversationID uuid.UUID, conversationType string) (bool, error) {
+	query := `
+	SELECT EXISTS(
+		SELECT 1
+		FROM conversation_messages m
+		JOIN conversations c ON c.id = m.conversation_id
+		WHERE
+			m.id = $1
+		AND
+			m.conversation_id = $2
+		AND
+			c.type = $3
+	)
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	args := []any{messageID, conversationID, conversationType}
+
+	var exists bool
+
+	err := cmm.DB.QueryRowContext(ctx, query, args...).Scan(&exists)
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/thisisjab/gchat-go/internal/data"
 	"github.com/thisisjab/gchat-go/internal/filter"
 	"github.com/thisisjab/gchat-go/internal/validator"
@@ -120,8 +121,9 @@ func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter,
 // It creates a new message in a private chat if `other_user_id` is a valid user id.
 func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Type    string `json:"type"`
-		Content string `json:"content"`
+		Type             string     `json:"type"`
+		Content          string     `json:"content"`
+		RepliedMessageID *uuid.UUID `json:"replied_message_id"`
 	}
 
 	if err := s.readJSON(w, r, &input); err != nil {
@@ -166,13 +168,32 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 
 	// Prepare and validate message before inserting
 	msg := &data.ConversationMessage{
-		ConversationID: conversation.ID,
-		SenderID:       user.ID,
-		Content:        input.Content,
-		Type:           input.Type,
+		ConversationID:   conversation.ID,
+		SenderID:         user.ID,
+		Content:          input.Content,
+		Type:             input.Type,
+		RepliedMessageID: input.RepliedMessageID,
 	}
 
 	data.ValidateConversationMessage(v, msg)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	// Check replied message exists
+	if input.RepliedMessageID != nil {
+		msgExists, err := s.models.ConversationMessage.BelongsToConversation(*input.RepliedMessageID, conversation.ID, data.ConversationTypePrivate)
+
+		if err != nil {
+			s.serverErrorResponse(w, r, err)
+
+			return
+		}
+
+		v.Check(msgExists, "replied_message_id", "does not exist")
+	}
+
 	if !v.Valid() {
 		s.failedValidationResponse(w, r, v.Errors())
 		return
@@ -246,8 +267,9 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 // It creates a new message in a group chat if group exists and current user is a member of the group.
 func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Type    string `json:"type"`
-		Content string `json:"content"`
+		Type             string     `json:"type"`
+		Content          string     `json:"content"`
+		RepliedMessageID *uuid.UUID `json:"replied_message_id"`
 	}
 
 	if err := s.readJSON(w, r, &input); err != nil {
@@ -291,13 +313,32 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 
 	// Prepare and validate message before inserting
 	msg := &data.ConversationMessage{
-		ConversationID: *groupID,
-		SenderID:       user.ID,
-		Content:        input.Content,
-		Type:           input.Type,
+		ConversationID:   *groupID,
+		SenderID:         user.ID,
+		Content:          input.Content,
+		Type:             input.Type,
+		RepliedMessageID: input.RepliedMessageID,
 	}
 
 	data.ValidateConversationMessage(v, msg)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	// Check replied message exists
+	if input.RepliedMessageID != nil {
+		msgExists, err := s.models.ConversationMessage.BelongsToConversation(*input.RepliedMessageID, *groupID, data.ConversationTypeGroup)
+
+		if err != nil {
+			s.serverErrorResponse(w, r, err)
+
+			return
+		}
+
+		v.Check(msgExists, "replied_message_id", "does not exist")
+	}
+
 	if !v.Valid() {
 		s.failedValidationResponse(w, r, v.Errors())
 		return
