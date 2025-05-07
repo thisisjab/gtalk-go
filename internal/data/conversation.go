@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	filters "github.com/thisisjab/gchat-go/internal/filter"
+	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
 const (
@@ -34,6 +35,11 @@ type ConversationModel struct {
 type ConversationWithPreview struct {
 	Conversation
 	Preview *ConversationMessage `json:"preview"`
+}
+
+func ValidateGroupMetadata(v *validator.Validator, metadata GroupMetadata) {
+	v.Check(metadata.Name != "", "name", "must be provided")
+	v.Check(len(metadata.Name) <= 100, "name", "must be at most 100 bytes")
 }
 
 func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
@@ -241,4 +247,54 @@ func (cm *ConversationModel) Exists(conversationID uuid.UUID, conversationType s
 	}
 
 	return exists, nil
+}
+
+func (cm *ConversationModel) CreateGroup(conversation *Conversation) error {
+	query := `
+		INSERT INTO conversations (type)
+		VALUES ($1)
+		RETURNING id, created_at, updated_at
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tx, err := cm.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	err = tx.QueryRowContext(ctx, query, conversation.Type).Scan(&conversation.ID, &conversation.CreatedAt, &conversation.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	if conversation.Type == ConversationTypeGroup {
+		if conversation.GroupMetadata == nil {
+			return errors.New("conversation group metadata is not provided")
+		}
+
+		// Create group metadata
+		query = `
+		INSERT INTO group_metadata (conversation_id, owner_id, name) VALUES ($1, $2, $3)
+		`
+		_, err := tx.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID, conversation.GroupMetadata.Name)
+
+		if err != nil {
+			return err
+		}
+
+		// Add group owner to group participants
+		query = `
+		INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2)
+		`
+		_, err = tx.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

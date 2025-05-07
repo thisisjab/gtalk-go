@@ -354,3 +354,47 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 }
+
+func (s *APIServer) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Name string `json:"name"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+
+		return
+	}
+
+	groupMetadata := data.GroupMetadata{
+		OwnerID: s.contextGetUser(r).ID,
+		Name:    input.Name,
+	}
+
+	v := validator.New()
+
+	data.ValidateGroupMetadata(v, groupMetadata)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+
+		return
+	}
+
+	group := data.Conversation{
+		Type:          data.ConversationTypeGroup,
+		GroupMetadata: &groupMetadata,
+	}
+
+	err := s.models.Conversation.CreateGroup(&group)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+
+		return
+	}
+
+	if err := s.writeJSON(w, http.StatusCreated, envelope{"group": group}, nil); err != nil {
+		s.serverErrorResponse(w, r, err)
+
+		return
+	}
+}
