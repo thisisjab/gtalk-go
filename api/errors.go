@@ -29,6 +29,11 @@ func (s *APIServer) serverErrorResponse(w http.ResponseWriter, r *http.Request, 
 	s.errorResponse(w, r, http.StatusInternalServerError, message)
 }
 
+func (s *APIServer) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "method not allowed"
+	s.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+}
+
 func (s *APIServer) notFoundResponse(w http.ResponseWriter, r *http.Request) {
 	message := "requested resource could not be found"
 	s.errorResponse(w, r, http.StatusNotFound, message)

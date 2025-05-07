@@ -8,8 +8,10 @@ import (
 
 func (s *APIServer) routes() http.Handler {
 	router := NewRouter("/api/v1")
+	router.router.MethodNotAllowed = http.HandlerFunc(s.methodNotAllowedResponse)
+	router.router.NotFound = http.HandlerFunc(s.notFoundResponse)
 
-	// Healthcheck
+	// HealthCheck
 	router.RegisterHandlerFunc(http.MethodGet, "/healthcheck", s.handleHealthCheck)
 
 	// Authentication
