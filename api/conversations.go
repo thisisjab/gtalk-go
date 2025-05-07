@@ -241,3 +241,75 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 }
+
+// handleCreateGroupMessage handles the POST /conversations/group/:group_id/messages endpoint.
+// It creates a new message in a group chat if group exists and current user is a member of the group.
+func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Type    string `json:"type"`
+		Content string `json:"content"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+		return
+	}
+
+	user := s.contextGetUser(r)
+
+	v := validator.New()
+
+	groupID := s.readUUIDParam("group_id", r, v)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	// Check group exists
+	groupExists, err := s.models.Conversation.Exists(*groupID, data.ConversationTypeGroup)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if !groupExists {
+		s.notFoundResponse(w, r)
+		return
+	}
+
+	// Check user is a member of group.
+	isParticipant, err := s.models.ConversationParticipant.Exists(user.ID, *groupID, data.ConversationTypeGroup)
+	if err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if !isParticipant {
+		s.permissionDeniedResponse(w, r)
+		return
+	}
+
+	// Prepare and validate message before inserting
+	msg := &data.ConversationMessage{
+		ConversationID: *groupID,
+		SenderID:       user.ID,
+		Content:        input.Content,
+		Type:           input.Type,
+	}
+
+	data.ValidateConversationMessage(v, msg)
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+		return
+	}
+
+	if err := s.models.ConversationMessage.Insert(msg); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+
+	if err := s.writeJSON(w, http.StatusCreated, envelope{"message": msg}, nil); err != nil {
+		s.serverErrorResponse(w, r, err)
+		return
+	}
+}

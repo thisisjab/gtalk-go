@@ -78,3 +78,8 @@ func (s *APIServer) inactiveAccountResponse(w http.ResponseWriter, r *http.Reque
 	message := "account is deactivated"
 	s.errorResponse(w, r, http.StatusForbidden, message)
 }
+
+func (s *APIServer) permissionDeniedResponse(w http.ResponseWriter, r *http.Request) {
+	message := "access forbidden"
+	s.errorResponse(w, r, http.StatusForbidden, message)
+}

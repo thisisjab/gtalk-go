@@ -166,3 +166,31 @@ func (cm *ConversationModel) CreateBetweenUsers(userID, otherUserID uuid.UUID) (
 
 	return conversation, nil
 }
+
+func (cm *ConversationModel) Exists(conversationID uuid.UUID, conversationType string) (bool, error) {
+	query := `
+	SELECT EXISTS(
+		SELECT 1
+		FROM conversations c
+		WHERE
+			c.id = $1
+		AND
+			c.type = $2
+	)
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	args := []any{conversationID, conversationType}
+
+	var exists bool
+
+	err := cm.DB.QueryRowContext(ctx, query, args...).Scan(&exists)
+
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
