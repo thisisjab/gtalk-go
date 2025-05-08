@@ -64,6 +64,7 @@ func (p *password) Matches(plaintextPassword string) (bool, error) {
 }
 
 var (
+	ErrUserDoesNotExist      = errors.New("non-existing user")
 	ErrUserDuplicateEmail    = errors.New("duplicate email")
 	ErrUserDuplicateUsername = errors.New("duplicate username")
 )

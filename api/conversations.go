@@ -355,6 +355,8 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// handleCreateGroup handles the POST /conversations/group endpoint.
+// It creates a group.
 func (s *APIServer) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name string `json:"name"`
@@ -397,4 +399,69 @@ func (s *APIServer) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+
+func (s *APIServer) handleAddGroupParticipant(w http.ResponseWriter, r *http.Request) {
+	user := s.contextGetUser(r)
+
+	v := validator.New()
+
+	groupID := s.readUUIDParam("group_id", r, v)
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+
+		return
+	}
+
+	group, err := s.models.Conversation.Get(*groupID, data.ConversationTypeGroup)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrNoRecordFound):
+			s.notFoundResponse(w, r)
+		default:
+			s.serverErrorResponse(w, r, err)
+		}
+
+		return
+	}
+
+	// Check if current user is owner of group before proceeding
+	if group.GroupMetadata.OwnerID != user.ID {
+		s.permissionDeniedResponse(w, r)
+
+		return
+	}
+
+	var input struct {
+		ParticipantID uuid.UUID `json:"user_id"`
+	}
+
+	if err := s.readJSON(w, r, &input); err != nil {
+		s.badRequestResponse(w, r, err)
+
+		return
+	}
+
+	err = s.models.ConversationParticipant.AddParticipant(groupID, &input.ParticipantID)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrUserDoesNotExist):
+			v.AddError("user_id", "does not exist")
+		case errors.Is(err, data.ErrConversationParticipantDuplicate):
+			v.AddError("user_id", "already a participant")
+		default:
+			s.serverErrorResponse(w, r, err)
+			return
+		}
+	}
+
+	if !v.Valid() {
+		s.failedValidationResponse(w, r, v.Errors())
+
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -37,6 +37,10 @@ type ConversationWithPreview struct {
 	Preview *ConversationMessage `json:"preview"`
 }
 
+var (
+	ErrConversationDoesNotExist = errors.New("non-existing conversation")
+)
+
 func ValidateGroupMetadata(v *validator.Validator, metadata GroupMetadata) {
 	v.Check(metadata.Name != "", "name", "must be provided")
 	v.Check(len(metadata.Name) <= 100, "name", "must be at most 100 bytes")
@@ -297,4 +301,49 @@ func (cm *ConversationModel) CreateGroup(conversation *Conversation) error {
 	}
 
 	return tx.Commit()
+}
+
+func (cm *ConversationModel) Get(conversationID uuid.UUID, conversationType string) (*Conversation, error) {
+	query := `
+		SELECT
+			c.id, c.created_at, c.updated_at, c.version,
+			gm.owner_id, gm.name
+		FROM conversations c
+		LEFT JOIN group_metadata gm ON gm.conversation_id = c.id
+		WHERE c.id = $1 AND c.type = $2
+	`
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var conversation Conversation
+	var groupOwnerID *uuid.UUID
+	var groupName *string
+
+	err := cm.DB.QueryRowContext(ctx, query, conversationID, conversationType).Scan(
+		&conversation.ID,
+		&conversation.CreatedAt,
+		&conversation.UpdatedAt,
+		&conversation.Version,
+		&groupOwnerID,
+		&groupName,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrNoRecordFound
+		default:
+			return nil, err
+		}
+	}
+
+	if groupOwnerID != nil {
+		conversation.GroupMetadata = &GroupMetadata{
+			OwnerID: *groupOwnerID,
+			Name:    *groupName,
+		}
+	}
+
+	return &conversation, nil
 }
