@@ -29,7 +29,7 @@ type GroupMetadata struct {
 }
 
 type ConversationModel struct {
-	DB *sql.DB
+	DB DBOperator
 }
 
 type ConversationWithPreview struct {
@@ -46,7 +46,7 @@ func ValidateGroupMetadata(v *validator.Validator, metadata GroupMetadata) {
 	v.Check(len(metadata.Name) <= 100, "name", "must be at most 100 bytes")
 }
 
-func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filter.Filters) ([]*ConversationWithPreview, *filter.PaginationMetadata, error) {
+func (cm *ConversationModel) GetAllWithPreview(ctx context.Context, userID uuid.UUID, f filter.Filters) ([]*ConversationWithPreview, *filter.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER() AS total_records,
@@ -67,7 +67,7 @@ func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filter.Filter
 	LIMIT $2 OFFSET $3
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{userID, f.Limit(), f.Offset()}
@@ -155,7 +155,7 @@ func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filter.Filter
 	return conversations, paginationMetadata, nil
 }
 
-func (cm *ConversationModel) GetPrivateBetweenUsers(userID, otherUserID uuid.UUID) (*Conversation, error) {
+func (cm *ConversationModel) GetPrivateBetweenUsers(ctx context.Context, userID, otherUserID uuid.UUID) (*Conversation, error) {
 	query := `
 	SELECT c.id, c.created_at FROM conversations c
     JOIN conversation_participants cp1
@@ -168,7 +168,7 @@ func (cm *ConversationModel) GetPrivateBetweenUsers(userID, otherUserID uuid.UUI
         AND cp2.user_id = $2
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	conversation := &Conversation{}
@@ -186,38 +186,26 @@ func (cm *ConversationModel) GetPrivateBetweenUsers(userID, otherUserID uuid.UUI
 	return conversation, nil
 }
 
-func (cm *ConversationModel) CreateBetweenUsers(userID, otherUserID uuid.UUID) (*Conversation, error) {
+func (cm *ConversationModel) CreateBetweenUsers(ctx context.Context, userID, otherUserID uuid.UUID) (*Conversation, error) {
 	query := `
 	INSERT INTO conversations (type)
 	VALUES ('private')
 	RETURNING id, type, created_at, updated_at
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
-	tx, err := cm.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 
 	// Create conversation
 	conversation := &Conversation{}
-	err = tx.QueryRowContext(ctx, query).Scan(&conversation.ID, &conversation.Type, &conversation.CreatedAt, &conversation.UpdatedAt)
+	err := cm.DB.QueryRowContext(ctx, query).Scan(&conversation.ID, &conversation.Type, &conversation.CreatedAt, &conversation.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 
 	// Add participants
 	query = `INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2), ($1, $3)`
-	_, err = tx.ExecContext(ctx, query, conversation.ID, userID, otherUserID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Commit transaction
-	err = tx.Commit()
+	_, err = cm.DB.ExecContext(ctx, query, conversation.ID, userID, otherUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +213,7 @@ func (cm *ConversationModel) CreateBetweenUsers(userID, otherUserID uuid.UUID) (
 	return conversation, nil
 }
 
-func (cm *ConversationModel) Exists(conversationID uuid.UUID, conversationType string) (bool, error) {
+func (cm *ConversationModel) Exists(ctx context.Context, conversationID uuid.UUID, conversationType string) (bool, error) {
 	query := `
 	SELECT EXISTS(
 		SELECT 1
@@ -237,7 +225,7 @@ func (cm *ConversationModel) Exists(conversationID uuid.UUID, conversationType s
 	)
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{conversationID, conversationType}
@@ -253,23 +241,18 @@ func (cm *ConversationModel) Exists(conversationID uuid.UUID, conversationType s
 	return exists, nil
 }
 
-func (cm *ConversationModel) CreateGroup(conversation *Conversation) error {
+func (cm *ConversationModel) CreateGroup(ctx context.Context, conversation *Conversation) error {
 	query := `
 		INSERT INTO conversations (type)
 		VALUES ($1)
 		RETURNING id, created_at, updated_at
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	tx, err := cm.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
+	err := cm.DB.QueryRowContext(ctx, query, conversation.Type).Scan(&conversation.ID, &conversation.CreatedAt, &conversation.UpdatedAt)
 
-	err = tx.QueryRowContext(ctx, query, conversation.Type).Scan(&conversation.ID, &conversation.CreatedAt, &conversation.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -283,7 +266,7 @@ func (cm *ConversationModel) CreateGroup(conversation *Conversation) error {
 		query = `
 		INSERT INTO group_metadata (conversation_id, owner_id, name) VALUES ($1, $2, $3)
 		`
-		_, err := tx.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID, conversation.GroupMetadata.Name)
+		_, err := cm.DB.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID, conversation.GroupMetadata.Name)
 
 		if err != nil {
 			return err
@@ -293,17 +276,17 @@ func (cm *ConversationModel) CreateGroup(conversation *Conversation) error {
 		query = `
 		INSERT INTO conversation_participants (conversation_id, user_id) VALUES ($1, $2)
 		`
-		_, err = tx.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID)
+		_, err = cm.DB.ExecContext(ctx, query, conversation.ID, conversation.GroupMetadata.OwnerID)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
-func (cm *ConversationModel) Get(conversationID uuid.UUID, conversationType string) (*Conversation, error) {
+func (cm *ConversationModel) Get(ctx context.Context, conversationID uuid.UUID, conversationType string) (*Conversation, error) {
 	query := `
 		SELECT
 			c.id, c.created_at, c.updated_at, c.version,
@@ -313,7 +296,7 @@ func (cm *ConversationModel) Get(conversationID uuid.UUID, conversationType stri
 		WHERE c.id = $1 AND c.type = $2
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	var conversation Conversation

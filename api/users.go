@@ -41,7 +41,7 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: wrap in transaction
-	if err := s.models.User.Insert(user); err != nil {
+	if err := s.models.User.Insert(r.Context(), user); err != nil {
 		switch {
 		case errors.Is(err, data.ErrUserDuplicateUsername):
 			v.AddError("username", "this username is already taken")
@@ -55,7 +55,7 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := s.models.Token.New(user.ID, 1*time.Hour, data.ScopeAccountActivation)
+	token, err := s.models.Token.New(r.Context(), user.ID, 1*time.Hour, data.ScopeAccountActivation)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
@@ -99,7 +99,7 @@ func (s *APIServer) handleActivateUserAccount(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	user, err := s.models.User.GetFromToken(input.TokenPlaintext, data.ScopeAccountActivation)
+	user, err := s.models.User.GetFromToken(r.Context(), input.TokenPlaintext, data.ScopeAccountActivation)
 
 	if err != nil {
 		switch {
@@ -115,7 +115,7 @@ func (s *APIServer) handleActivateUserAccount(w http.ResponseWriter, r *http.Req
 	user.EmailVerifiedAt = &now
 	user.IsActive = true
 
-	if err := s.models.User.Update(user); err != nil {
+	if err := s.models.User.Update(r.Context(), user); err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
 			s.editConflictResponse(w, r)
@@ -125,7 +125,7 @@ func (s *APIServer) handleActivateUserAccount(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = s.models.Token.DeleteAllForUser(user.ID, data.ScopeAccountActivation)
+	err = s.models.Token.DeleteAllForUser(r.Context(), user.ID, data.ScopeAccountActivation)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return

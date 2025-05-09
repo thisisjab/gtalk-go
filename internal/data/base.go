@@ -1,11 +1,19 @@
 package data
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+type DBOperator interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
 
 type BaseModel struct {
 	ID        uuid.UUID `json:"id"`

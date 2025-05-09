@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"slices"
 	"time"
 
@@ -20,7 +19,7 @@ const (
 )
 
 type ConversationMessageModel struct {
-	DB *sql.DB
+	DB DBOperator
 }
 
 type ConversationMessage struct {
@@ -58,7 +57,7 @@ func ValidateConversationMessage(v *validator.Validator, cm *ConversationMessage
 	v.Check(len(cm.Content) <= 500, "content", "must not be more than 500 bytes long")
 }
 
-func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessage, *filter.PaginationMetadata, error) {
+func (cmm *ConversationMessageModel) GetAllForPrivate(ctx context.Context, conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessage, *filter.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER(),
@@ -72,7 +71,7 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 	LIMIT $2 OFFSET $3
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	rows, err := cmm.DB.QueryContext(ctx, query, conversationID, f.Limit(), f.Offset())
@@ -152,7 +151,7 @@ func (cmm *ConversationMessageModel) GetAllForPrivate(conversationID uuid.UUID, 
 	return messages, paginationMetadata, nil
 }
 
-func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessageAndSender, *filter.PaginationMetadata, error) {
+func (cmm *ConversationMessageModel) GetAllForGroup(ctx context.Context, conversationID uuid.UUID, f filter.Filters) ([]*ConversationMessageWithRepliedMessageAndSender, *filter.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER(),
@@ -167,7 +166,7 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 	LIMIT $2 OFFSET $3
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	rows, err := cmm.DB.QueryContext(ctx, query, conversationID, f.Limit(), f.Offset())
@@ -251,14 +250,14 @@ func (cmm *ConversationMessageModel) GetAllForGroup(conversationID uuid.UUID, f 
 	return messages, paginationMetadata, nil
 }
 
-func (cmm *ConversationMessageModel) Insert(message *ConversationMessage) error {
+func (cmm *ConversationMessageModel) Insert(ctx context.Context, message *ConversationMessage) error {
 	query := `
 	INSERT INTO conversation_messages (conversation_id, sender_id, type, content, replied_message_id)
 	VALUES ($1, $2, $3, $4, $5)
 	RETURNING id, created_at, updated_at
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{message.ConversationID, message.SenderID, message.Type, message.Content, message.RepliedMessageID}
@@ -266,7 +265,7 @@ func (cmm *ConversationMessageModel) Insert(message *ConversationMessage) error 
 	return cmm.DB.QueryRowContext(ctx, query, args...).Scan(&message.ID, &message.CreatedAt, &message.UpdatedAt)
 }
 
-func (cmm *ConversationMessageModel) BelongsToConversation(messageID, conversationID uuid.UUID, conversationType string) (bool, error) {
+func (cmm *ConversationMessageModel) BelongsToConversation(ctx context.Context, messageID, conversationID uuid.UUID, conversationType string) (bool, error) {
 	query := `
 	SELECT EXISTS(
 		SELECT 1
@@ -281,7 +280,7 @@ func (cmm *ConversationMessageModel) BelongsToConversation(messageID, conversati
 	)
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{messageID, conversationID, conversationType}

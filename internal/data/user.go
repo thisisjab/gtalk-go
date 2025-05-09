@@ -12,7 +12,7 @@ import (
 )
 
 type UserModel struct {
-	DB *sql.DB
+	DB DBOperator
 }
 
 type User struct {
@@ -98,14 +98,14 @@ func ValidateUser(v *validator.Validator, user *User) {
 	}
 }
 
-func (m UserModel) GetByID(id uuid.UUID) (*User, error) {
+func (m UserModel) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	query := `
 		SELECT id, username, email, bio, password_hash, is_active, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	user := &User{}
@@ -132,14 +132,14 @@ func (m UserModel) GetByID(id uuid.UUID) (*User, error) {
 	return user, nil
 }
 
-func (m UserModel) GetByEmail(email string) (*User, error) {
+func (m UserModel) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
 		SELECT id, email, password_hash, is_active
 		FROM users
 		WHERE email = $1
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	user := &User{}
@@ -162,7 +162,7 @@ func (m UserModel) GetByEmail(email string) (*User, error) {
 	return user, nil
 }
 
-func (m UserModel) Insert(user *User) error {
+func (m UserModel) Insert(ctx context.Context, user *User) error {
 	query := `
 		INSERT INTO users (username, email, password_hash, is_active, bio)
 		VALUES ($1, $2, $3, $4, $5)
@@ -171,7 +171,7 @@ func (m UserModel) Insert(user *User) error {
 
 	args := []any{user.Username, user.Email, user.Password.hash, user.IsActive, user.Bio}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt, &user.Version)
@@ -189,7 +189,7 @@ func (m UserModel) Insert(user *User) error {
 	return nil
 }
 
-func (m UserModel) Update(user *User) error {
+func (m UserModel) Update(ctx context.Context, user *User) error {
 	query := `
 	UPDATE users
 	SET
@@ -215,7 +215,7 @@ func (m UserModel) Update(user *User) error {
 		user.Version,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
@@ -235,7 +235,7 @@ func (m UserModel) Update(user *User) error {
 	return nil
 }
 
-func (m UserModel) GetFromToken(tokenPlaintext, scope string) (*User, error) {
+func (m UserModel) GetFromToken(ctx context.Context, tokenPlaintext, scope string) (*User, error) {
 	tokenHash := hashToken(tokenPlaintext)
 
 	query := `
@@ -257,7 +257,7 @@ func (m UserModel) GetFromToken(tokenPlaintext, scope string) (*User, error) {
 
 	var user User
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	args := []any{tokenHash, scope, time.Now()}
@@ -287,10 +287,10 @@ func (m UserModel) GetFromToken(tokenPlaintext, scope string) (*User, error) {
 	return &user, nil
 }
 
-func (m *UserModel) ExistsByID(id uuid.UUID) bool {
+func (m *UserModel) ExistsByID(ctx context.Context, id uuid.UUID) bool {
 	query := `SELECT id FROM users WHERE id = $1`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var foundID uuid.UUID

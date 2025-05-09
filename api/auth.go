@@ -37,7 +37,7 @@ func (s *APIServer) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		user, err := s.models.User.GetFromToken(token, data.ScopeAuthenticationAccess)
+		user, err := s.models.User.GetFromToken(r.Context(), token, data.ScopeAuthenticationAccess)
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrNoRecordFound):

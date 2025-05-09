@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -17,14 +16,14 @@ type ConversationParticipant struct {
 }
 
 type ConversationParticipantModel struct {
-	DB *sql.DB
+	DB DBOperator
 }
 
 var (
 	ErrConversationParticipantDuplicate = errors.New("duplicate participant")
 )
 
-func (cpm *ConversationParticipantModel) Exists(userID uuid.UUID, conversationID uuid.UUID, conversationType string) (bool, error) {
+func (cpm *ConversationParticipantModel) Exists(ctx context.Context, userID uuid.UUID, conversationID uuid.UUID, conversationType string) (bool, error) {
 	query := `
 	SELECT EXISTS(
 		SELECT 1
@@ -39,7 +38,7 @@ func (cpm *ConversationParticipantModel) Exists(userID uuid.UUID, conversationID
 	)
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{userID, conversationID, conversationType}
@@ -55,12 +54,12 @@ func (cpm *ConversationParticipantModel) Exists(userID uuid.UUID, conversationID
 	return exists, nil
 }
 
-func (cp *ConversationParticipantModel) AddParticipant(conversationID, userID *uuid.UUID) error {
+func (cp *ConversationParticipantModel) AddParticipant(ctx context.Context, conversationID, userID *uuid.UUID) error {
 	query := `
 		INSERT INTO conversation_participants(conversation_id, user_id) VALUES ($1, $2)
 	`
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	_, err := cp.DB.ExecContext(ctx, query, conversationID, userID)

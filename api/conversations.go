@@ -32,7 +32,7 @@ func (s *APIServer) handleListConversations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	conversations, paginationMetadata, err := s.models.Conversation.GetAllWithPreview(user.ID, f)
+	conversations, paginationMetadata, err := s.models.Conversation.GetAllWithPreview(r.Context(), user.ID, f)
 	if err != nil {
 		switch {
 		case errors.Is(err, filter.InvalidPageError):
@@ -79,7 +79,7 @@ func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter,
 	}
 
 	// Check other user exists
-	otherUser, err := s.models.User.GetByID(*otherUserID)
+	otherUser, err := s.models.User.GetByID(r.Context(), *otherUserID)
 
 	if err != nil {
 		switch {
@@ -93,13 +93,13 @@ func (s *APIServer) handleListPrivateConversationMessages(w http.ResponseWriter,
 
 	// Get the conversation
 	// If conversation doesn't exist, client just sees an empty list of messages
-	conversation, err := s.models.Conversation.GetPrivateBetweenUsers(user.ID, *otherUserID)
+	conversation, err := s.models.Conversation.GetPrivateBetweenUsers(r.Context(), user.ID, *otherUserID)
 	if err != nil && !errors.Is(err, data.ErrNoRecordFound) {
 		s.serverErrorResponse(w, r, err)
 		return
 	}
 
-	messages, paginationMetadata, err := s.models.ConversationMessage.GetAllForPrivate(conversation.ID, f)
+	messages, paginationMetadata, err := s.models.ConversationMessage.GetAllForPrivate(r.Context(), conversation.ID, f)
 
 	if err != nil {
 		switch {
@@ -142,19 +142,19 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 	}
 
 	// Check other user exists
-	if otherUserExists := s.models.User.ExistsByID(*otherUserID); !otherUserExists {
+	if otherUserExists := s.models.User.ExistsByID(r.Context(), *otherUserID); !otherUserExists {
 		s.notFoundResponse(w, r)
 
 		return
 	}
 
 	// Get the conversation
-	conversation, err := s.models.Conversation.GetPrivateBetweenUsers(user.ID, *otherUserID)
+	conversation, err := s.models.Conversation.GetPrivateBetweenUsers(r.Context(), user.ID, *otherUserID)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRecordFound):
 			// If conversation doesn't exist, create it.
-			conversation, err = s.models.Conversation.CreateBetweenUsers(user.ID, *otherUserID)
+			conversation, err = s.models.Conversation.CreateBetweenUsers(r.Context(), user.ID, *otherUserID)
 
 			if err != nil {
 				s.serverErrorResponse(w, r, err)
@@ -183,7 +183,7 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 
 	// Check replied message exists
 	if input.RepliedMessageID != nil {
-		msgExists, err := s.models.ConversationMessage.BelongsToConversation(*input.RepliedMessageID, conversation.ID, data.ConversationTypePrivate)
+		msgExists, err := s.models.ConversationMessage.BelongsToConversation(r.Context(), *input.RepliedMessageID, conversation.ID, data.ConversationTypePrivate)
 
 		if err != nil {
 			s.serverErrorResponse(w, r, err)
@@ -199,7 +199,7 @@ func (s *APIServer) handleCreatePrivateMessage(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := s.models.ConversationMessage.Insert(msg); err != nil {
+	if err := s.models.ConversationMessage.Insert(r.Context(), msg); err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
 	}
@@ -224,7 +224,7 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	participationExists, err := s.models.ConversationParticipant.Exists(user.ID, *groupID, data.ConversationTypeGroup)
+	participationExists, err := s.models.ConversationParticipant.Exists(r.Context(), user.ID, *groupID, data.ConversationTypeGroup)
 
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
@@ -250,7 +250,7 @@ func (s *APIServer) handleListGroupMessages(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	messages, paginationMetadata, err := s.models.ConversationMessage.GetAllForGroup(*groupID, f)
+	messages, paginationMetadata, err := s.models.ConversationMessage.GetAllForGroup(r.Context(), *groupID, f)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
@@ -288,7 +288,7 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Check group exists
-	groupExists, err := s.models.Conversation.Exists(*groupID, data.ConversationTypeGroup)
+	groupExists, err := s.models.Conversation.Exists(r.Context(), *groupID, data.ConversationTypeGroup)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
@@ -300,7 +300,7 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Check user is a member of group.
-	isParticipant, err := s.models.ConversationParticipant.Exists(user.ID, *groupID, data.ConversationTypeGroup)
+	isParticipant, err := s.models.ConversationParticipant.Exists(r.Context(), user.ID, *groupID, data.ConversationTypeGroup)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
@@ -328,7 +328,7 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 
 	// Check replied message exists
 	if input.RepliedMessageID != nil {
-		msgExists, err := s.models.ConversationMessage.BelongsToConversation(*input.RepliedMessageID, *groupID, data.ConversationTypeGroup)
+		msgExists, err := s.models.ConversationMessage.BelongsToConversation(r.Context(), *input.RepliedMessageID, *groupID, data.ConversationTypeGroup)
 
 		if err != nil {
 			s.serverErrorResponse(w, r, err)
@@ -344,7 +344,7 @@ func (s *APIServer) handleCreateGroupMessage(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	if err := s.models.ConversationMessage.Insert(msg); err != nil {
+	if err := s.models.ConversationMessage.Insert(r.Context(), msg); err != nil {
 		s.serverErrorResponse(w, r, err)
 		return
 	}
@@ -387,7 +387,7 @@ func (s *APIServer) handleCreateGroup(w http.ResponseWriter, r *http.Request) {
 		GroupMetadata: &groupMetadata,
 	}
 
-	err := s.models.Conversation.CreateGroup(&group)
+	err := s.models.Conversation.CreateGroup(r.Context(), &group)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 
@@ -414,7 +414,7 @@ func (s *APIServer) handleAddGroupParticipant(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	group, err := s.models.Conversation.Get(*groupID, data.ConversationTypeGroup)
+	group, err := s.models.Conversation.Get(r.Context(), *groupID, data.ConversationTypeGroup)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRecordFound):
@@ -443,7 +443,7 @@ func (s *APIServer) handleAddGroupParticipant(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = s.models.ConversationParticipant.AddParticipant(groupID, &input.ParticipantID)
+	err = s.models.ConversationParticipant.AddParticipant(r.Context(), groupID, &input.ParticipantID)
 
 	if err != nil {
 		switch {

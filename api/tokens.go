@@ -30,7 +30,7 @@ func (s *APIServer) handleCreateAccessToken(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user, err := s.models.User.GetByEmail(input.Email)
+	user, err := s.models.User.GetByEmail(r.Context(), input.Email)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrNoRecordFound):
@@ -52,7 +52,7 @@ func (s *APIServer) handleCreateAccessToken(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	token, err := s.models.Token.New(user.ID, 24*time.Hour, data.ScopeAuthenticationAccess)
+	token, err := s.models.Token.New(r.Context(), user.ID, 24*time.Hour, data.ScopeAuthenticationAccess)
 	if err != nil {
 		s.serverErrorResponse(w, r, err)
 		return

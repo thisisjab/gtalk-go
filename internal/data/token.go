@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base32"
 	"time"
 
@@ -27,7 +26,7 @@ type Token struct {
 }
 
 type TokenModel struct {
-	DB *sql.DB
+	DB DBOperator
 }
 
 func hashToken(tokenPlaintext string) []byte {
@@ -60,17 +59,17 @@ func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
 	v.Check(len(tokenPlaintext) == 26, "token", "must be 26 bytes long")
 }
 
-func (m TokenModel) New(userID uuid.UUID, ttl time.Duration, scope string) (*Token, error) {
+func (m TokenModel) New(ctx context.Context, userID uuid.UUID, ttl time.Duration, scope string) (*Token, error) {
 	token, err := generateToken(userID, ttl, scope)
 	if err != nil {
 		return nil, err
 	}
 
-	err = m.Insert(token)
+	err = m.Insert(ctx, token)
 	return token, err
 }
 
-func (m TokenModel) Insert(token *Token) error {
+func (m TokenModel) Insert(ctx context.Context, token *Token) error {
 	query := `
 	INSERT INTO tokens (user_id, hash, expiry, scope)
 	VALUES ($1, $2, $3, $4)
@@ -83,7 +82,7 @@ func (m TokenModel) Insert(token *Token) error {
 		token.Scope,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.ExecContext(ctx, query, args...)
@@ -91,7 +90,7 @@ func (m TokenModel) Insert(token *Token) error {
 	return err
 }
 
-func (m TokenModel) DeleteAllForUser(userID uuid.UUID, scope string) error {
+func (m TokenModel) DeleteAllForUser(ctx context.Context, userID uuid.UUID, scope string) error {
 	query := `DELETE FROM tokens WHERE user_id=$1 AND scope = $2`
 
 	args := []any{
@@ -99,7 +98,7 @@ func (m TokenModel) DeleteAllForUser(userID uuid.UUID, scope string) error {
 		scope,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	_, err := m.DB.ExecContext(ctx, query, args...)
