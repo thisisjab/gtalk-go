@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	filters "github.com/thisisjab/gchat-go/internal/filter"
+	"github.com/thisisjab/gchat-go/internal/filter"
 	"github.com/thisisjab/gchat-go/internal/validator"
 )
 
@@ -46,7 +46,7 @@ func ValidateGroupMetadata(v *validator.Validator, metadata GroupMetadata) {
 	v.Check(len(metadata.Name) <= 100, "name", "must be at most 100 bytes")
 }
 
-func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filters) ([]*ConversationWithPreview, *filters.PaginationMetadata, error) {
+func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filter.Filters) ([]*ConversationWithPreview, *filter.PaginationMetadata, error) {
 	query := `
 	SELECT
 		count(*) OVER() AS total_records,
@@ -147,7 +147,7 @@ func (cm *ConversationModel) GetAllWithPreview(userID uuid.UUID, f filters.Filte
 		return nil, nil, err
 	}
 
-	paginationMetadata, err := filters.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
+	paginationMetadata, err := filter.CalculatePaginationMetadata(totalRecords, f.Page, f.PageSize)
 	if err != nil {
 		return nil, nil, err
 	}
